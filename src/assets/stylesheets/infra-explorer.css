@@ -1,0 +1,762 @@
+/* All selectors are prefixed with .ie- so the overlay does not affect the Morpheus page.
+   Colors follow the main navigation of the Morpheus UI (theme stylesheet): dark blue bar, white text, green for
+   hover and selection, green underline for the active entry. The bar is dark in every mode, so is the overlay. */
+.ie-root {
+	--ie-bg: #263040;
+	--ie-fg: #ffffff;
+	--ie-muted: #aab4c3;
+	--ie-border: #435470;
+	--ie-accent: #17d0a6;
+	--ie-hover-bg: #2f3b4f;
+	--ie-focus-bg: #435470;
+	--ie-danger: #ff7b85;
+	--ie-input-bg: #1d2532;
+	font-family: inherit;
+	font-size: 13px;
+	line-height: 1.4;
+}
+
+.ie-root *,
+.ie-root *::before,
+.ie-root *::after {
+	box-sizing: border-box;
+}
+
+.ie-root button {
+	margin: 0;
+	text-transform: none;
+	letter-spacing: normal;
+}
+
+/* The theme stylesheet that some Morpheus pages load (/assets/themes/…/app-*.css) styles every button as a green pill:
+   button, .button { height: 32px; line-height: 32px; padding: 0 18px; border-radius: 32px; background: #008567; … },
+   button + button { margin-left: 5px }, button:hover, button:focus { background-color: #006750 }, button[disabled]
+   { background: #aaa }. :where() keeps the reset at the specificity of a plain "button", so it beats the theme (loaded
+   earlier) but not the class rules of the overlay below. */
+:where(#ie-root) button {
+	display: inline-block;
+	height: auto;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	line-height: inherit;
+	text-transform: none;
+	letter-spacing: normal;
+	cursor: pointer;
+}
+
+:where(#ie-root) button + button {
+	margin-left: 0;
+}
+
+/* Hover, focus and disabled of the theme are more specific than the overlay classes; reset them with the id and
+   give the overlay states the id as well (#ie-root .ie-…:hover). */
+#ie-root button:hover,
+#ie-root button:focus {
+	background-color: transparent;
+	color: inherit;
+	text-decoration: none;
+}
+
+#ie-root button[disabled] {
+	background-color: transparent;
+	color: inherit;
+	cursor: default;
+}
+
+/* Narrow windows: the theme forces button { min-height: 44px !important; padding: 0 16px !important } */
+@media (max-width: 767px) {
+	#ie-root button {
+		min-height: 0 !important;
+		line-height: inherit;
+	}
+}
+
+.ie-launcher {
+	position: fixed;
+	left: 16px;
+	bottom: 16px;
+	z-index: 10000;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: 1px solid var(--ie-border);
+	border-radius: 50%;
+	background: var(--ie-bg);
+	color: var(--ie-accent);
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+	cursor: pointer;
+}
+
+#ie-root .ie-launcher:focus {
+	background-color: var(--ie-bg);
+	color: var(--ie-accent);
+}
+
+#ie-root .ie-launcher:hover {
+	background: var(--ie-focus-bg);
+}
+
+#ie-root .ie-launcher[aria-expanded="true"] {
+	background: var(--ie-accent);
+	color: var(--ie-bg);
+}
+
+.ie-launcher:focus-visible,
+.ie-button:focus-visible,
+.ie-menu-item:focus-visible,
+.ie-tab:focus-visible,
+.ie-maximize:focus-visible,
+.ie-resize:focus-visible,
+.ie-reload:focus-visible,
+.ie-close:focus-visible,
+.ie-toggle:focus-visible {
+	outline: 2px solid var(--ie-accent);
+	outline-offset: 2px;
+}
+
+.ie-panel {
+	position: fixed;
+	left: 16px;
+	bottom: 66px;
+	z-index: 10000;
+	width: min(420px, calc(100vw - 32px));
+	height: min(560px, calc(100vh - 100px));
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--ie-border);
+	border-radius: 6px;
+	background: var(--ie-bg);
+	color: var(--ie-fg);
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.3);
+}
+
+.ie-panel[hidden] {
+	display: none;
+}
+
+/* Size chosen by the user (inline width/height from the script, always capped by the window) or maximized */
+.ie-panel.ie-maximized {
+	width: calc(100vw - 32px);
+	height: calc(100vh - 100px);
+}
+
+/* Grips on the free edges: the panel is anchored bottom left, so it grows to the top and to the right */
+.ie-resize {
+	position: absolute;
+	z-index: 1;
+	touch-action: none;
+}
+
+/* Outside the border, so they cover neither the scroll bar nor tabs and buttons */
+.ie-resize-top {
+	top: -8px;
+	left: 0;
+	right: 0;
+	height: 8px;
+	cursor: ns-resize;
+}
+
+.ie-resize-right {
+	top: 0;
+	right: -8px;
+	bottom: 0;
+	width: 8px;
+	cursor: ew-resize;
+}
+
+.ie-resize-corner {
+	top: -10px;
+	right: -10px;
+	width: 14px;
+	height: 14px;
+	z-index: 2;
+	cursor: nesw-resize;
+}
+
+.ie-resize-top:hover,
+.ie-resize-top:focus-visible,
+.ie-resizing-height .ie-resize-top {
+	box-shadow: inset 0 -3px 0 var(--ie-accent);
+}
+
+.ie-resize-right:hover,
+.ie-resize-right:focus-visible,
+.ie-resizing-width .ie-resize-right {
+	box-shadow: inset 3px 0 0 var(--ie-accent);
+}
+
+.ie-maximized .ie-resize {
+	display: none;
+}
+
+/* No text selection and no hover effects in the tree while dragging */
+.ie-resizing {
+	user-select: none;
+}
+
+.ie-resizing .ie-body {
+	pointer-events: none;
+}
+
+.ie-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border-bottom: 1px solid var(--ie-border);
+	padding: 4px 4px 0 8px;
+}
+
+.ie-tabs {
+	display: flex;
+	gap: 2px;
+}
+
+.ie-tab,
+.ie-maximize,
+.ie-reload,
+.ie-close {
+	border: 0;
+	background: transparent;
+	color: var(--ie-muted);
+	cursor: pointer;
+	padding: 8px 10px;
+	font: inherit;
+}
+
+.ie-tab {
+	color: var(--ie-fg);
+}
+
+#ie-root .ie-tab:hover {
+	color: var(--ie-accent);
+}
+
+#ie-root .ie-tab[aria-pressed="true"] {
+	color: var(--ie-accent);
+	box-shadow: inset 0 -3px 0 var(--ie-accent);
+}
+
+.ie-actions {
+	display: flex;
+}
+
+.ie-reload,
+.ie-close {
+	font-size: 18px;
+	line-height: 1;
+}
+
+.ie-maximize {
+	display: flex;
+	align-items: center;
+}
+
+.ie-maximize .ie-icon-restore,
+.ie-maximize[aria-pressed="true"] .ie-icon-max {
+	display: none;
+}
+
+.ie-maximize[aria-pressed="true"] .ie-icon-restore {
+	display: block;
+}
+
+#ie-root .ie-maximize:hover,
+#ie-root .ie-reload:hover,
+#ie-root .ie-close:hover {
+	color: var(--ie-accent);
+}
+
+.ie-body {
+	flex: 1;
+	overflow: auto;
+	padding: 8px;
+}
+
+.ie-empty,
+.ie-error {
+	color: var(--ie-muted);
+	margin: 4px 0 4px 20px;
+}
+
+.ie-error {
+	color: var(--ie-danger);
+}
+
+.ie-tree {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.ie-children .ie-tree,
+.ie-children > .ie-empty,
+.ie-children > .ie-error {
+	margin-left: 16px;
+}
+
+.ie-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 26px;
+	border-radius: 4px;
+}
+
+.ie-row:hover {
+	background: var(--ie-hover-bg);
+}
+
+#ie-root .ie-toggle:hover {
+	color: var(--ie-accent);
+}
+
+.ie-toggle {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	border: 0;
+	padding: 2px 4px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.ie-caret,
+.ie-leaf {
+	flex: none;
+	width: 12px;
+	display: inline-block;
+}
+
+.ie-caret::before {
+	content: "▸";
+	color: var(--ie-muted);
+}
+
+.ie-toggle[aria-expanded="true"] .ie-caret::before {
+	content: "▾";
+}
+
+.ie-leaf {
+	margin-left: 4px;
+}
+
+.ie-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* The id raises the specificity above the link colors of the Morpheus stylesheets (e.g. a { color: #146e97 }) */
+#ie-root a.ie-name,
+#ie-root a.ie-name:link,
+#ie-root a.ie-name:visited {
+	color: var(--ie-fg);
+	text-decoration: none;
+}
+
+#ie-root a.ie-name:hover,
+#ie-root a.ie-name:focus,
+#ie-root a.ie-name:active {
+	color: var(--ie-accent);
+	text-decoration: underline;
+	/* The theme stylesheet draws a thick focus ring on links; keyboard focus gets the ring below */
+	outline: none;
+}
+
+#ie-root a.ie-name:focus-visible {
+	outline: 2px solid var(--ie-accent);
+	outline-offset: 1px;
+}
+
+.ie-tag {
+	flex: none;
+	color: var(--ie-muted);
+	font-size: 12px;
+}
+
+.ie-node-cluster > .ie-row .ie-name,
+.ie-node-storageCluster > .ie-row .ie-name {
+	font-weight: 600;
+}
+
+.ie-meta {
+	margin-left: auto;
+	padding-right: 6px;
+	color: var(--ie-muted);
+	font-size: 12px;
+}
+
+.ie-power {
+	flex: none;
+	width: 8px;
+	height: 8px;
+	margin-left: auto;
+	margin-right: 8px;
+	border-radius: 50%;
+	background: var(--ie-muted);
+}
+
+.ie-power-on {
+	background: var(--ie-accent);
+}
+
+.ie-power-off {
+	background: var(--ie-danger);
+}
+
+.ie-power-paused {
+	background: #d4a017;
+}
+
+.ie-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+.ie-node-datastore > .ie-row {
+	align-items: flex-start;
+	padding: 3px 0;
+}
+
+.ie-stack {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.ie-sub {
+	color: var(--ie-muted);
+	font-size: 12px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ie-warn {
+	color: var(--ie-danger);
+}
+
+.ie-usage {
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 2px;
+	width: 150px;
+	margin-left: auto;
+	padding-right: 6px;
+}
+
+.ie-usage-track {
+	display: block;
+	width: 100%;
+	height: 6px;
+	border-radius: 3px;
+	background: var(--ie-border);
+	overflow: hidden;
+}
+
+.ie-usage-bar {
+	display: block;
+	height: 100%;
+	background: var(--ie-accent);
+}
+
+.ie-usage-high {
+	background: var(--ie-danger);
+}
+
+.ie-usage-text {
+	color: var(--ie-muted);
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.ie-host {
+	flex: none;
+	max-width: 30%;
+	margin-left: auto;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--ie-muted);
+	font-size: 12px;
+}
+
+.ie-host + .ie-power {
+	margin-left: 6px;
+}
+
+.ie-node-tenant > .ie-row .ie-name {
+	font-weight: 600;
+}
+
+.ie-hint {
+	margin: 10px 0 0 4px;
+	color: var(--ie-muted);
+	font-size: 11px;
+}
+
+.ie-menu {
+	position: fixed;
+	z-index: 10001;
+	min-width: 180px;
+	padding: 4px 0;
+	border: 1px solid var(--ie-border);
+	border-radius: 4px;
+	background: var(--ie-bg);
+	color: var(--ie-fg);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.ie-menu-item {
+	display: block;
+	width: 100%;
+	border: 0;
+	padding: 6px 12px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+#ie-root .ie-menu-item:hover,
+#ie-root .ie-menu-item:focus {
+	background: var(--ie-focus-bg);
+	color: var(--ie-accent);
+}
+
+.ie-status {
+	border-top: 1px solid var(--ie-border);
+	padding: 6px 10px;
+	color: var(--ie-muted);
+	font-size: 12px;
+}
+
+.ie-status[hidden] {
+	display: none;
+}
+
+.ie-status-error {
+	color: var(--ie-danger);
+}
+
+.ie-dialog {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: 48px 12px 12px;
+	border-radius: 6px;
+	background: rgba(38, 48, 64, 0.7);
+}
+
+#ie-root .ie-dialog-box {
+	color: var(--ie-fg);
+}
+
+.ie-dialog-box {
+	width: 100%;
+	max-height: 100%;
+	overflow: auto;
+	padding: 12px 14px;
+	border: 1px solid var(--ie-border);
+	border-radius: 6px;
+	background: var(--ie-bg);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Dialog elements with the id: Morpheus styles h2, label and input globally */
+#ie-root .ie-dialog-title {
+	margin: 0 0 4px;
+	color: var(--ie-fg);
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.ie-field {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-top: 8px;
+}
+
+#ie-root .ie-field label {
+	color: var(--ie-muted);
+	font-size: 12px;
+	font-weight: normal;
+	margin: 0;
+}
+
+#ie-root .ie-input {
+	width: 100%;
+	height: auto;
+	padding: 4px 6px;
+	border: 1px solid var(--ie-border);
+	border-radius: 3px;
+	background: var(--ie-input-bg);
+	color: var(--ie-fg);
+	caret-color: var(--ie-accent);
+	box-shadow: none;
+	font: inherit;
+}
+
+#ie-root .ie-input::placeholder {
+	color: var(--ie-muted);
+}
+
+#ie-root .ie-input:focus {
+	border-color: var(--ie-accent);
+	outline: none;
+}
+
+.ie-dialog .ie-error {
+	margin: 8px 0 0;
+}
+
+.ie-dialog-buttons {
+	display: flex;
+	gap: 6px;
+	margin-top: 12px;
+}
+
+.ie-button {
+	border: 1px solid var(--ie-border);
+	border-radius: 3px;
+	padding: 4px 10px;
+	background: transparent;
+	color: var(--ie-fg);
+	font: inherit;
+	cursor: pointer;
+}
+
+#ie-root .ie-button:hover:not(:disabled) {
+	border-color: var(--ie-accent);
+	color: var(--ie-accent);
+}
+
+#ie-root .ie-button-primary,
+#ie-root .ie-button-primary[disabled],
+#ie-root .ie-button-primary:focus,
+#ie-root .ie-button-primary:hover:not(:disabled) {
+	border-color: var(--ie-accent);
+	background: var(--ie-accent);
+	color: var(--ie-bg);
+}
+
+#ie-root .ie-button:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+/* Drag and drop of VMs onto folders */
+.ie-node-vm[draggable="true"] > .ie-row {
+	cursor: grab;
+}
+
+.ie-dragging {
+	opacity: 0.5;
+}
+
+.ie-row.ie-drop-target {
+	background: var(--ie-focus-bg);
+	box-shadow: inset 0 0 0 1px var(--ie-accent);
+}
+
+#ie-root .ie-link-button {
+	display: inline;
+	color: var(--ie-accent);
+	font-size: inherit;
+	text-decoration: underline;
+}
+
+#ie-root .ie-link-button:hover,
+#ie-root .ie-link-button:focus {
+	color: var(--ie-fg);
+}
+
+.ie-link-button:focus-visible {
+	outline: 2px solid var(--ie-accent);
+	outline-offset: 2px;
+}
+
+#ie-root .ie-field-check {
+	flex-direction: row;
+	align-items: center;
+	gap: 6px;
+}
+
+#ie-root .ie-field-check label {
+	color: var(--ie-fg);
+}
+
+#ie-root .ie-check {
+	width: auto;
+	height: auto;
+	margin: 0;
+	accent-color: var(--ie-accent);
+}
+
+/* CPU and RAM of hosts and clusters: two compact bars before the power badge or status */
+.ie-load {
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	width: 112px;
+	margin-left: auto;
+	padding-right: 6px;
+}
+
+.ie-load-line {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 10px;
+	line-height: 12px;
+	color: var(--ie-muted);
+}
+
+.ie-load-label {
+	flex: none;
+	width: 24px;
+}
+
+.ie-load-line .ie-usage-track {
+	flex: 1;
+	width: auto;
+	height: 4px;
+}
+
+.ie-load-value {
+	flex: none;
+	width: 30px;
+	text-align: right;
+}
+
+.ie-load + .ie-power,
+.ie-load + .ie-meta {
+	margin-left: 2px;
+}

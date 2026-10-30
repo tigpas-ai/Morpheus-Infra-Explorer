@@ -1,0 +1,40 @@
+<div id="ie-root" class="ie-root" data-ie-cache-key="{{cacheKey}}" data-ie-layout-key="{{layoutKey}}">
+	<button type="button" id="ie-launcher" class="ie-launcher" aria-controls="ie-panel" aria-expanded="false"
+			title="Infra Explorer" aria-label="Open Infra Explorer">
+		<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+			<path fill="currentColor" d="M3 3h7v5H3zM14 9h7v5h-7zM14 16h7v5h-7zM6 8h2v3h6v2H8v4h6v2H6z"/>
+		</svg>
+	</button>
+	<section id="ie-panel" class="ie-panel" role="region" aria-label="Infra Explorer" hidden>
+		<header class="ie-header">
+			<div class="ie-tabs" role="group" aria-label="View">
+				<button type="button" class="ie-tab" data-ie-view="clusters" aria-pressed="true">Clusters</button>
+				<button type="button" class="ie-tab" data-ie-view="vms" aria-pressed="false">Instances</button>
+				<button type="button" class="ie-tab" data-ie-view="storage" aria-pressed="false">Storage</button>
+			</div>
+			<div class="ie-actions">
+				<button type="button" class="ie-maximize" aria-pressed="false" aria-label="Maximize window"
+						title="Maximize">
+					<svg class="ie-icon-max" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+						<rect x="2.5" y="2.5" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5"/>
+					</svg>
+					<svg class="ie-icon-restore" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+						<path d="M5.5 2.5h8v8M2.5 5.5h8v8h-8z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+					</svg>
+				</button>
+				<button type="button" class="ie-reload" aria-label="Reload view" title="Reload">&#x21bb;</button>
+				<button type="button" class="ie-close" aria-label="Close" title="Close">&times;</button>
+			</div>
+		</header>
+		<div class="ie-body" aria-live="polite"></div>
+		<div class="ie-status" role="status" aria-live="polite" hidden></div>
+		<div class="ie-resize ie-resize-top" data-ie-resize="height" role="separator" aria-orientation="horizontal" aria-controls="ie-panel"
+			 tabindex="0" aria-label="Resize height" title="Resize height (double-click: default size)"></div>
+		<div class="ie-resize ie-resize-right" data-ie-resize="width" role="separator" aria-orientation="vertical" aria-controls="ie-panel"
+			 tabindex="0" aria-label="Resize width" title="Resize width (double-click: default size)"></div>
+		<div class="ie-resize ie-resize-corner" data-ie-resize="both" aria-hidden="true"
+			 title="Resize (double-click: default size)"></div>
+	</section>
+</div>
+<link rel="stylesheet" href="{{asset '/infra-explorer.css'}}?v={{assetVersion}}">
+<script src="{{asset '/infra-explorer.js'}}?v={{assetVersion}}" nonce="{{nonce ''}}"></script>

@@ -1,0 +1,25 @@
+package eu.liehne.morpheus.infraexplorer
+
+import com.morpheusdata.core.MorpheusContext
+import spock.lang.Specification
+
+class InfraExplorerPluginSpec extends Specification {
+
+	def "initialize registers the overlay provider and the controller"() {
+		given:
+		InfraExplorerPlugin plugin = new InfraExplorerPlugin()
+		plugin.morpheus = Stub(MorpheusContext)
+		plugin.classLoader = getClass().classLoader
+
+		when:
+		plugin.initialize()
+
+		then:
+		plugin.name == 'Infra Explorer'
+		plugin.providers*.code == [InfraExplorerOverlayProvider.PROVIDER_CODE]
+		plugin.controllers*.code == ['infra-explorer.controller']
+		plugin.controllers[0].routes.size() == 8
+		plugin.settings*.fieldName == ['folderTags']
+		plugin.hasCustomRender()
+	}
+}
