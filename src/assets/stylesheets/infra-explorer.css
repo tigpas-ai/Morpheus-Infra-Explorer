@@ -507,6 +507,16 @@
 	flex: none;
 }
 
+/* The path line links to the detail view of the path monitor */
+a.ie-paths {
+	text-decoration: none;
+}
+
+a.ie-paths:hover,
+a.ie-paths:focus-visible {
+	text-decoration: underline;
+}
+
 /* Path states of a shared datastore: muted while all nodes are OK, coloured otherwise */
 .ie-paths-degraded,
 .ie-paths-unknown {

@@ -1811,7 +1811,13 @@
 	}
 
 	// "Nodes: 1 ✅, 2 ⚠️": OK always, the other states when they occur; host details in the tooltip
-	function pathLine(datastore) {
+	// Detail view of the Storage Path Monitor plugin: opens the datastore there
+	function pathDetailUrl(clusterId, datastoreId) {
+		return '/infrastructure/clusters/' + encodeURIComponent(clusterId) + '?spm-datastore='
+			+ encodeURIComponent(datastoreId) + '#!storage-path-monitor-tab';
+	}
+
+	function pathLine(datastore, clusterId) {
 		var counts = pathCounts(datastore);
 		var total = counts.ok + counts.degraded + counts.down + counts.unknown;
 		if (!total) {
@@ -1819,7 +1825,8 @@
 		}
 		var shown = PATH_STATES.filter(function (state) { return state === 'ok' || counts[state] > 0; });
 		var worst = ['down', 'degraded', 'unknown'].filter(function (state) { return counts[state] > 0; })[0] || 'ok';
-		var line = el('span', 'ie-sub ie-paths ie-paths-' + worst);
+		var line = el('a', 'ie-sub ie-paths ie-paths-' + worst);
+		line.href = pathDetailUrl(clusterId, datastore.id);
 		line.appendChild(document.createTextNode(t('paths.label') + ' '));
 		shown.forEach(function (state, index) {
 			var part = el('span', 'ie-paths-part', formatNumber(counts[state]) + ' ' + PATH_SYMBOLS[state]);
@@ -1852,7 +1859,7 @@
 	function attachPaths(stack, node) {
 		clusterPathStats(node.clusterId).then(function (byId) {
 			var datastore = byId[node.id];
-			var line = datastore ? pathLine(datastore) : null;
+			var line = datastore ? pathLine(datastore, node.clusterId) : null;
 			if (line) {
 				stack.appendChild(line);
 			}

@@ -15,7 +15,7 @@ reconfigure. The first version supports HVM clusters. Details and open points: [
   networks.
 - **Storage** – datastores of each cluster with capacity and usage. If the separate Storage Path Monitor plugin
   (code `storage-path-monitor`) is installed, shared datastores also show the state of their storage paths per node
-  (e.g. `Nodes: 2 ✅, 1 ⚠️`).
+  (e.g. `Nodes: 2 ✅, 1 ⚠️`); clicking it opens that plugin's detail view.
 - Actions via context menu (right-click, Shift+F10 or the context menu key): details page, console, power,
   reconfigure, convert to managed, maintenance mode, cluster refresh, new instance in a folder.
 - The permissions of the signed-in user apply: nothing is shown or offered that the user could not see or do in
