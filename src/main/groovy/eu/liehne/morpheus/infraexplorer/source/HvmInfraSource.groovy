@@ -403,9 +403,11 @@ class HvmInfraSource implements InfraSource {
 		}
 		DataQuery query = new DataQuery(user).withFilter('id', 'in', serverIds)
 		Map<Long, Map<Long, Set<String>>> result = [:]
+		// One row per address: look up in a set
+		Set<Long> wanted = serverIds as Set
 		rows(morpheus.services.computeServer, query, INTERFACE_PROPS).each { Map row ->
 			Long id = row.id as Long
-			if (!(id in serverIds) || row['interfaces.id'] == null) {
+			if (!(id in wanted) || row['interfaces.id'] == null) {
 				return
 			}
 			Set<String> addresses = result.computeIfAbsent(id) { [:] }
@@ -418,8 +420,9 @@ class HvmInfraSource implements InfraSource {
 	}
 
 	/**
-	 * Networks the user may see, by id. Networks of another tenant count if they are shared publicly, as in Morpheus;
-	 * inactive networks are left out.
+	 * Networks the user may see, by id. Networks of another tenant count if they are shared publicly, as in Morpheus
+	 * (only for users with a tenant, like every other check); inactive networks are left out. All networks of the
+	 * appliance are read here (a few columns each): the cluster is not stored on the network.
 	 */
 	private Map<Long, Map> visibleNetworks(User user) {
 		rows(morpheus.services.network, new DataQuery(user), NETWORK_PROPS)

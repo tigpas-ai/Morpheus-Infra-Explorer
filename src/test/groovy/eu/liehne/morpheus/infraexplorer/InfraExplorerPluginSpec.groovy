@@ -16,6 +16,8 @@ class InfraExplorerPluginSpec extends Specification {
 
 		then:
 		plugin.name == 'Infra Explorer'
+		plugin.author == 'Pascal Liehne'
+		plugin.description.contains('networks')
 		plugin.providers*.code == [InfraExplorerOverlayProvider.PROVIDER_CODE]
 		plugin.controllers*.code == ['infra-explorer.controller']
 		plugin.controllers[0].routes.size() == 9

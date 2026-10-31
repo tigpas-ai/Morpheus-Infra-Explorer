@@ -3,6 +3,15 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.18.0 – 2026-10-31
+- New view **Networks**: per cluster its networks with VLAN, IP networks (CIDR IPv4/IPv6, subnets) and number of VMs,
+  below them the VMs with their addresses in that network; VMs with several interfaces appear below each network,
+  VMs outside any visible network under "Without network". New endpoint `networks` (contract 0.16.0), requires the
+  permission Networks (`infrastructure-networks`).
+- Multiple languages: English (default) and German. The overlay follows the language of the Morpheus UI; texts in
+  `infra-explorer-messages.js`. Numbers and sorting follow that language as well.
+- Info button in the overlay with version, author and license; author and description in the plugin list of Morpheus.
+
 ## 0.17.0 – 2026-10-31
 First public release, under the MIT license.
 

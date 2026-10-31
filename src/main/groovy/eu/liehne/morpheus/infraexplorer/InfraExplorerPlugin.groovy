@@ -7,6 +7,10 @@ import eu.liehne.morpheus.infraexplorer.source.InfraSource
 
 class InfraExplorerPlugin extends Plugin {
 
+	static final String AUTHOR = 'Pascal Liehne'
+	static final String LICENSE = 'MIT'
+	static final String DESCRIPTION = 'Hierarchical infrastructure navigation as an overlay: clusters, hosts, VMs, VM folders, networks and storage'
+
     @Override
     String getCode() {
         return 'infra-explorer'
@@ -15,6 +19,8 @@ class InfraExplorerPlugin extends Plugin {
     @Override
     void initialize() {
         this.setName("Infra Explorer")
+		this.setAuthor(AUTHOR)
+		this.setDescription(DESCRIPTION)
 		// Own renderer: without it, Morpheus 9.1 adds the plugin's templates to the shared renderer when controllers
 		// are registered, and that fails (UnsupportedOperationException in DynamicTemplateLoader).
 		this.setRenderer(new HandlebarsRenderer('renderer', this.classLoader))

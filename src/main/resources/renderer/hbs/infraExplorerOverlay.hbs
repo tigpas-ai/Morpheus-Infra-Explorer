@@ -1,18 +1,27 @@
-<div id="ie-root" class="ie-root" data-ie-cache-key="{{cacheKey}}" data-ie-layout-key="{{layoutKey}}">
+<div id="ie-root" class="ie-root" data-ie-cache-key="{{cacheKey}}" data-ie-layout-key="{{layoutKey}}"
+	 data-ie-version="{{version}}" data-ie-author="{{author}}" data-ie-license="{{license}}">
 	<button type="button" id="ie-launcher" class="ie-launcher" aria-controls="ie-panel" aria-expanded="false"
-			title="Infra Explorer" aria-label="Open Infra Explorer">
+			title="Infra Explorer" aria-label="Open Infra Explorer" data-ie-i18n-label="launcher.open">
 		<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
 			<path fill="currentColor" d="M3 3h7v5H3zM14 9h7v5h-7zM14 16h7v5h-7zM6 8h2v3h6v2H8v4h6v2H6z"/>
 		</svg>
 	</button>
 	<section id="ie-panel" class="ie-panel" role="region" aria-label="Infra Explorer" hidden>
 		<header class="ie-header">
-			<div class="ie-tabs" role="group" aria-label="View">
-				<button type="button" class="ie-tab" data-ie-view="clusters" aria-pressed="true">Clusters</button>
-				<button type="button" class="ie-tab" data-ie-view="vms" aria-pressed="false">Instances</button>
-				<button type="button" class="ie-tab" data-ie-view="storage" aria-pressed="false">Storage</button>
+			<div class="ie-tabs" role="group" aria-label="View" data-ie-i18n-label="panel.views">
+				<button type="button" class="ie-tab" data-ie-view="clusters" aria-pressed="true" data-ie-i18n="tab.clusters">Clusters</button>
+				<button type="button" class="ie-tab" data-ie-view="vms" aria-pressed="false" data-ie-i18n="tab.instances">Instances</button>
+				<button type="button" class="ie-tab" data-ie-view="networks" aria-pressed="false" data-ie-i18n="tab.networks">Networks</button>
+				<button type="button" class="ie-tab" data-ie-view="storage" aria-pressed="false" data-ie-i18n="tab.storage">Storage</button>
 			</div>
 			<div class="ie-actions">
+				<button type="button" class="ie-about" aria-label="About Infra Explorer" title="About"
+						data-ie-i18n-label="about.label" data-ie-i18n-title="about.button">
+					<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+						<circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/>
+						<path d="M8 7v4.5M8 4.5v.01" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+					</svg>
+				</button>
 				<button type="button" class="ie-maximize" aria-pressed="false" aria-label="Maximize window"
 						title="Maximize">
 					<svg class="ie-icon-max" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
@@ -22,19 +31,24 @@
 						<path d="M5.5 2.5h8v8M2.5 5.5h8v8h-8z" fill="none" stroke="currentColor" stroke-width="1.5"/>
 					</svg>
 				</button>
-				<button type="button" class="ie-reload" aria-label="Reload view" title="Reload">&#x21bb;</button>
-				<button type="button" class="ie-close" aria-label="Close" title="Close">&times;</button>
+				<button type="button" class="ie-reload" aria-label="Reload view" title="Reload"
+						data-ie-i18n-label="panel.reloadLabel" data-ie-i18n-title="panel.reload">&#x21bb;</button>
+				<button type="button" class="ie-close" aria-label="Close" title="Close"
+						data-ie-i18n-label="panel.close" data-ie-i18n-title="panel.close">&times;</button>
 			</div>
 		</header>
 		<div class="ie-body" aria-live="polite"></div>
 		<div class="ie-status" role="status" aria-live="polite" hidden></div>
 		<div class="ie-resize ie-resize-top" data-ie-resize="height" role="separator" aria-orientation="horizontal" aria-controls="ie-panel"
-			 tabindex="0" aria-label="Resize height" title="Resize height (double-click: default size)"></div>
+			 tabindex="0" aria-label="Resize height" title="Resize height (double-click: default size)"
+			 data-ie-i18n-label="resize.height" data-ie-i18n-title="resize.heightTitle"></div>
 		<div class="ie-resize ie-resize-right" data-ie-resize="width" role="separator" aria-orientation="vertical" aria-controls="ie-panel"
-			 tabindex="0" aria-label="Resize width" title="Resize width (double-click: default size)"></div>
+			 tabindex="0" aria-label="Resize width" title="Resize width (double-click: default size)"
+			 data-ie-i18n-label="resize.width" data-ie-i18n-title="resize.widthTitle"></div>
 		<div class="ie-resize ie-resize-corner" data-ie-resize="both" aria-hidden="true"
-			 title="Resize (double-click: default size)"></div>
+			 title="Resize (double-click: default size)" data-ie-i18n-title="resize.bothTitle"></div>
 	</section>
 </div>
 <link rel="stylesheet" href="{{asset '/infra-explorer.css'}}?v={{assetVersion}}">
+<script src="{{asset '/infra-explorer-messages.js'}}?v={{assetVersion}}" nonce="{{nonce ''}}"></script>
 <script src="{{asset '/infra-explorer.js'}}?v={{assetVersion}}" nonce="{{nonce ''}}"></script>

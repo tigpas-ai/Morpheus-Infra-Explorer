@@ -82,7 +82,7 @@ jar {
 				'Morpheus-Name': 'Infra Explorer',
 				'Morpheus-Organization': 'morpheus',
 				'Morpheus-Code': 'infra-explorer',
-				'Morpheus-Description': 'Hierarchical infrastructure navigation as an overlay: clusters, hosts, VMs, VM folders and storage',
+				'Morpheus-Description': 'Hierarchical infrastructure navigation as an overlay: clusters, hosts, VMs, VM folders, networks and storage',
 				'Morpheus-Logo': 'assets/morpheus.svg',
 				'Morpheus-Logo-Dark': 'assets/morpheus.svg',
 				'Morpheus-Labels': 'Plugin',

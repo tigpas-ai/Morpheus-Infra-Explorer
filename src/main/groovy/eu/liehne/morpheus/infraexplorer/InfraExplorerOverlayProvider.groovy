@@ -25,7 +25,7 @@ class InfraExplorerOverlayProvider extends AbstractGlobalUIComponentProvider {
 	protected Plugin plugin
 	private String assetVersion
 
-	static final List<String> ASSETS = ['assets/infra-explorer.js', 'assets/infra-explorer.css']
+	static final List<String> ASSETS = ['assets/infra-explorer-messages.js', 'assets/infra-explorer.js', 'assets/infra-explorer.css']
 
 	InfraExplorerOverlayProvider(Plugin plugin, MorpheusContext context) {
 		this.@plugin = plugin
@@ -45,7 +45,8 @@ class InfraExplorerOverlayProvider extends AbstractGlobalUIComponentProvider {
 	HTMLResponse renderTemplate(User user, Account account) {
 		// No user data goes into the page, only a key that keeps the browser cache of one user apart from the next.
 		ViewModel<Object> model = new ViewModel<>()
-		model.object = [cacheKey: cacheKey(user, account), layoutKey: layoutKey(user), assetVersion: assetVersion()]
+		model.object = [cacheKey: cacheKey(user, account), layoutKey: layoutKey(user), assetVersion: assetVersion(),
+						version: plugin?.version ?: '', author: InfraExplorerPlugin.AUTHOR, license: InfraExplorerPlugin.LICENSE]
 		getRenderer().renderTemplate('hbs/infraExplorerOverlay', model)
 	}
 

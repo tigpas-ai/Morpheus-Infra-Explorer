@@ -12,7 +12,7 @@
 	root.dataset.ieReady = 'true';
 
 	var API = '/plugin/infra-explorer';
-	var POWER_LABELS = { on: 'on', off: 'off', paused: 'paused', unknown: 'unknown' };
+	var POWER_STATES = ['on', 'off', 'paused', 'unknown'];
 	// Responses younger than this are shown without refreshing them again
 	var FRESH_MS = 15000;
 	// Upper bound for background requests started by one level
@@ -53,12 +53,86 @@
 	// Reload power states after an action (milliseconds after the request succeeded)
 	var POWER_REFRESH_MS = [3000, 10000, 30000];
 
+	// --- Texts ---------------------------------------------------------------------------------------------------
+	// The language follows the Morpheus page (user or appliance locale, otherwise the browser), see lang of <html>.
+	// Texts come from infra-explorer-messages.js; English is the fallback for languages and keys that are missing.
+
+	var MESSAGES = window.InfraExplorerMessages || { en: {} };
+	var LOCALE = validLocale(document.documentElement.lang);
+	var LANG = pickLanguage(LOCALE);
+	var plurals = new Intl.PluralRules(LANG);
+
+	// An invalid tag (e.g. de_DE) would make Intl throw and stop the whole script; then the browser default applies
+	function validLocale(tag) {
+		try {
+			return tag ? Intl.getCanonicalLocales(tag)[0] : undefined;
+		} catch (invalid) {
+			return undefined;
+		}
+	}
+
+	function pickLanguage(locale) {
+		var tag = String(locale || '').toLowerCase();
+		if (MESSAGES[tag]) {
+			return tag;
+		}
+		var primary = tag.split(/[-_]/)[0];
+		return MESSAGES[primary] ? primary : 'en';
+	}
+
+	function lookup(key) {
+		var text = (MESSAGES[LANG] || {})[key];
+		return text !== undefined ? text : (MESSAGES.en || {})[key];
+	}
+
+	// Text of a key with {name} placeholders replaced; unknown keys show the key itself
+	function t(key, params) {
+		var text = lookup(key);
+		if (text === undefined) {
+			return key;
+		}
+		return text.replace(/\{(\w+)\}/g, function (match, name) {
+			return params && params[name] !== undefined ? String(params[name]) : match;
+		});
+	}
+
+	// Text with a number: key.one, key.other, … after the plural rules of the language; {count} is the number
+	function tn(key, count, params) {
+		var form = key + '.' + plurals.select(count);
+		var values = { count: formatNumber(count) };
+		Object.keys(params || {}).forEach(function (name) { values[name] = params[name]; });
+		var own = (MESSAGES[LANG] || {})[form] !== undefined || (MESSAGES.en || {})[form] !== undefined;
+		return t(own ? form : key + '.other', values);
+	}
+
+	function formatNumber(value, options) {
+		return Number(value).toLocaleString(LOCALE, options);
+	}
+
+	// Static markup of the template: data-ie-i18n (text), data-ie-i18n-label (aria-label), data-ie-i18n-title (title).
+	// Without a text (e.g. the text file failed to load) the English text of the template stays.
+	function translateMarkup(scope) {
+		[['ieI18n', 'data-ie-i18n', function (node, text) { node.textContent = text; }],
+			['ieI18nLabel', 'data-ie-i18n-label', function (node, text) { node.setAttribute('aria-label', text); }],
+			['ieI18nTitle', 'data-ie-i18n-title', function (node, text) { node.title = text; }]].forEach(function (kind) {
+			Array.prototype.forEach.call(scope.querySelectorAll('[' + kind[1] + ']'), function (node) {
+				var text = lookup(node.dataset[kind[0]]);
+				if (text !== undefined) {
+					kind[2](node, text);
+				}
+			});
+		});
+	}
+
+	translateMarkup(root);
+
 	var launcher = document.getElementById('ie-launcher');
 	var panel = document.getElementById('ie-panel');
 	var body = panel.querySelector('.ie-body');
 	var tabs = Array.prototype.slice.call(panel.querySelectorAll('.ie-tab'));
 	var closeButton = panel.querySelector('.ie-close');
 	var reloadButton = panel.querySelector('.ie-reload');
+	var aboutButton = panel.querySelector('.ie-about');
 	var maximizeButton = panel.querySelector('.ie-maximize');
 	var resizeGrips = Array.prototype.slice.call(panel.querySelectorAll('.ie-resize'));
 	var statusLine = panel.querySelector('.ie-status');
@@ -106,7 +180,7 @@
 			.then(function (response) {
 				var contentType = response.headers.get('Content-Type') || '';
 				if (response.redirected || contentType.indexOf('json') === -1) {
-					var notJson = new Error('no valid response – session expired? Reload the page');
+					var notJson = new Error(t('error.session'));
 					notJson.status = response.status;
 					notJson.session = true;
 					throw notJson;
@@ -282,7 +356,7 @@
 		}
 		nodes.slice(0, PREFETCH_LIMIT).forEach(function (node) {
 			prefetchLoad(level.path(node)).then(function (data) {
-				prefetchTree(level.childKind, level.items(data) || []);
+				prefetchTree(level.childKind, level.items(data, node) || []);
 			}, function () { /* shown when the node is expanded */ });
 		});
 	}
@@ -294,6 +368,7 @@
 			var clusters = data.clusters || [];
 			prefetchTree('cluster', clusters);
 			prefetchTree('storageCluster', clusters);
+			prefetchTree('networkCluster', clusters);
 		}, function () { /* shown in the view */ });
 		prefetchLoad('/vm-folders').catch(function () { /* shown in the view */ });
 	}
@@ -354,34 +429,34 @@
 		var power = vmPower[node.id] || node.powerState;
 		var entries = [];
 		if (isLocalPath(node.url)) {
-			entries.push({ label: 'Open details page', run: function () { window.location.href = node.url; } });
+			entries.push({ label: t('menu.details'), run: function () { window.location.href = node.url; } });
 		}
 		if (isLocalPath(node.instanceUrl)) {
-			entries.push({ label: 'Open instance', run: function () { window.location.href = node.instanceUrl; } });
+			entries.push({ label: t('menu.instance'), run: function () { window.location.href = node.instanceUrl; } });
 		}
 		if (actions.indexOf('console') !== -1) {
-			entries.push({ label: 'Open console', run: function () { openConsole(node); } });
+			entries.push({ label: t('menu.console'), run: function () { openConsole(node); } });
 		}
 		if (actions.indexOf('power') !== -1) {
 			if (power !== 'on') {
-				entries.push({ label: 'Start', run: function () { powerAction(node, POWER.start); } });
+				entries.push({ label: t('menu.start'), run: function () { powerAction(node, POWER.start); } });
 			}
 			if (power !== 'off') {
-				entries.push({ label: 'Shut down', run: function () { powerAction(node, POWER.shutdown); } });
-				entries.push({ label: 'Power off (forced)', run: function () { powerAction(node, POWER.powerOff); } });
+				entries.push({ label: t('menu.shutdown'), run: function () { powerAction(node, POWER.shutdown); } });
+				entries.push({ label: t('menu.powerOff'), run: function () { powerAction(node, POWER.powerOff); } });
 			}
 			if (power === 'on') {
-				entries.push({ label: 'Restart', run: function () { powerAction(node, POWER.restart); } });
+				entries.push({ label: t('menu.restart'), run: function () { powerAction(node, POWER.restart); } });
 			}
 		}
 		if (actions.indexOf('folder') !== -1) {
-			entries.push({ label: 'Move to folder …', run: function () { openFolderDialog(node); } });
+			entries.push({ label: t('menu.moveToFolder'), run: function () { openFolderDialog(node); } });
 		}
 		if (actions.indexOf('reconfigure') !== -1 && isLocalPath(node.url)) {
-			entries.push({ label: 'Reconfigure …', run: function () { window.location.href = node.url + '#ie-reconfigure'; } });
+			entries.push({ label: t('menu.reconfigure'), run: function () { window.location.href = node.url + '#ie-reconfigure'; } });
 		}
 		if (actions.indexOf('convert') !== -1 && isLocalPath(node.url)) {
-			entries.push({ label: 'Convert to managed …', run: function () { window.location.href = node.url + '#ie-convert'; } });
+			entries.push({ label: t('menu.convert'), run: function () { window.location.href = node.url + '#ie-convert'; } });
 		}
 		return entries;
 	}
@@ -502,19 +577,19 @@
 		if (win) {
 			win.focus();
 		} else {
-			showStatus('Could not open the console – allow pop-ups for this page.', true);
+			showStatus(t('status.consoleBlocked'), true);
 		}
 	}
 
 	// Power endpoints of the Morpheus UI (verified against Morpheus 9.1): start and restart as form POST with _method=PUT and
 	// "OK" as answer; stop as JSON PUT with force (graceful waits for the guest's ACPI shutdown, up to a few minutes).
 	var POWER = {
-		start: { verb: 'start', request: function (id) { return formPut('/infrastructure/servers/' + id + '/start'); } },
-		restart: { verb: 'restart', request: function (id) { return formPut('/infrastructure/servers/' + id + '/restart'); } },
-		shutdown: { verb: 'shut down', request: function (id) { return stopRequest(id, false); } },
+		start: { task: 'task.start', request: function (id) { return formPut('/infrastructure/servers/' + id + '/start'); } },
+		restart: { task: 'task.restart', request: function (id) { return formPut('/infrastructure/servers/' + id + '/restart'); } },
+		shutdown: { task: 'task.shutdown', request: function (id) { return stopRequest(id, false); } },
 		powerOff: {
-			verb: 'force power off',
-			warning: 'Unsaved data in the guest may be lost.',
+			task: 'task.powerOff',
+			warning: 'warning.powerOff',
 			request: function (id) { return stopRequest(id, true); }
 		}
 	};
@@ -545,76 +620,70 @@
 
 	// Uses the power endpoints of the Morpheus UI, so Morpheus checks the permissions again
 	function powerAction(node, operation) {
-		uiAction(node.name, operation.verb, operation.warning, function () { return operation.request(node.id); },
-			function () { refreshPower(node); });
+		uiAction(t(operation.task, { name: node.name }), operation.warning && t(operation.warning),
+			function () { return operation.request(node.id); }, function () { refreshPower(node); });
 	}
 
 	// Runs a request of the Morpheus UI after a confirmation (skipped with skipConfirm); answers are "OK" or JSON
-	// with success
-	function uiAction(name, verb, warning, request, done, skipConfirm) {
-		var task = verb + ' ' + name;
-		if (!skipConfirm && !window.confirm(upperFirst(task) + '?' + (warning ? '\n' + warning : ''))) {
+	// with success. task is the whole action as one text, e.g. "Start vm-1".
+	function uiAction(task, warning, request, done, skipConfirm) {
+		if (!skipConfirm && !window.confirm(t('action.confirm', { task: task }) + (warning ? '\n' + warning : ''))) {
 			return;
 		}
-		showStatus(upperFirst(task) + ' …', false);
+		showStatus(t('action.running', { task: task }), false);
 		request().then(function (response) {
 			var contentType = response.headers.get('Content-Type') || '';
 			if (response.redirected) {
-				throw new Error(response.url.indexOf('invalid-csrf') !== -1 ?
-					'invalid security token – reload the page' : 'session expired? Reload the page');
+				throw new Error(response.url.indexOf('invalid-csrf') !== -1 ? t('error.csrf') : t('error.session'));
 			}
 			var body = contentType.indexOf('json') !== -1 ? readJson(response) : Promise.resolve(null);
 			return body.then(function (json) {
 				if (!response.ok || (json && json.success === false)) {
 					throw new Error((json && (json.msg || json.message)) ||
-						(response.status === 403 ? 'permission denied' : 'HTTP ' + response.status));
+						(response.status === 403 ? t('error.forbidden') : 'HTTP ' + response.status));
 				}
 			});
 		}).then(function () {
-			showStatus(upperFirst(task) + ': request accepted.', false);
+			showStatus(t('action.accepted', { task: task }), false);
 			if (done) {
 				done();
 			}
 		}).catch(function (error) {
-			showStatus('Could not ' + task + ' (' + error.message + ').', true);
+			showStatus(t('action.failed', { task: task, error: error.message }), true);
 		});
-	}
-
-	function upperFirst(text) {
-		return text.charAt(0).toUpperCase() + text.slice(1);
 	}
 
 	function hostEntries(node) {
 		var actions = node.actions || [];
 		var entries = [];
 		if (isLocalPath(node.url)) {
-			entries.push({ label: 'Open details page', run: function () { window.location.href = node.url; } });
+			entries.push({ label: t('menu.details'), run: function () { window.location.href = node.url; } });
 		}
 		if (actions.indexOf('maintenance') !== -1 && isLocalPath(node.url)) {
 			var inMaintenance = hostMaintenance.hasOwnProperty(node.id) ? hostMaintenance[node.id] : node.maintenance;
 			if (inMaintenance) {
-				entries.push({ label: 'Exit maintenance mode', run: function () { leaveMaintenance(node); } });
+				entries.push({ label: t('menu.exitMaintenance'), run: function () { leaveMaintenance(node); } });
 			} else {
 				// Morpheus asks for the options (e.g. moving the VMs) in its own dialog
-				entries.push({ label: 'Enter maintenance mode …', run: function () { window.location.href = node.url + '#ie-maintenance'; } });
+				entries.push({ label: t('menu.enterMaintenance'), run: function () { window.location.href = node.url + '#ie-maintenance'; } });
 			}
 		}
 		if (actions.indexOf('restart') !== -1) {
-			entries.push({ label: 'Restart', run: function () {
-				uiAction('host ' + node.name, 'restart', 'All VMs on this host are affected.',
+			entries.push({ label: t('menu.restart'), run: function () {
+				uiAction(t('task.restartHost', { name: node.name }), t('warning.restartHost'),
 					function () { return formPut('/infrastructure/servers/' + encodeURIComponent(node.id) + '/restart'); },
 					function () { refreshHosts(node); });
 			} });
 		}
 		if (actions.indexOf('edit') !== -1 && isLocalPath(node.url)) {
-			entries.push({ label: 'Edit …', run: function () { window.location.href = node.url + '#ie-edit'; } });
+			entries.push({ label: t('menu.edit'), run: function () { window.location.href = node.url + '#ie-edit'; } });
 		}
 		return entries;
 	}
 
 	// Same request as the server list of the Morpheus UI
 	function leaveMaintenance(node) {
-		uiAction('host ' + node.name, 'end maintenance mode of', 'The host accepts VMs again afterwards.', function () {
+		uiAction(t('task.exitMaintenance', { name: node.name }), t('warning.exitMaintenance'), function () {
 			return fetch('/infrastructure/servers/bulk-leave-maintenance', {
 				method: 'POST', credentials: 'same-origin', body: 'ids=' + encodeURIComponent(node.id),
 				headers: csrfHeaders('application/x-www-form-urlencoded; charset=UTF-8')
@@ -636,21 +705,21 @@
 		var actions = node.actions || [];
 		var entries = [];
 		if (isLocalPath(node.url)) {
-			entries.push({ label: 'Open details page', run: function () { window.location.href = node.url; } });
+			entries.push({ label: t('menu.details'), run: function () { window.location.href = node.url; } });
 		}
 		if (actions.indexOf('refresh') !== -1) {
-			entries.push({ label: 'Refresh (short)', run: function () { refreshCluster(node, false); } });
-			entries.push({ label: 'Refresh (daily)', run: function () { refreshCluster(node, true); } });
+			entries.push({ label: t('menu.refreshShort'), run: function () { refreshCluster(node, false); } });
+			entries.push({ label: t('menu.refreshDaily'), run: function () { refreshCluster(node, true); } });
 		}
 		if (actions.indexOf('edit') !== -1 && isLocalPath(node.url)) {
-			entries.push({ label: 'Edit …', run: function () { window.location.href = node.url + '#ie-edit'; } });
+			entries.push({ label: t('menu.edit'), run: function () { window.location.href = node.url + '#ie-edit'; } });
 		}
 		return entries;
 	}
 
 	// Refresh of the Morpheus UI (GET, like its "Refresh" and "Daily" links); no confirmation, nothing is changed
 	function refreshCluster(node, daily) {
-		uiAction('cluster ' + node.name, daily ? 'run the daily refresh of' : 'refresh', null, function () {
+		uiAction(t(daily ? 'task.refreshDaily' : 'task.refresh', { name: node.name }), null, function () {
 			return fetch('/infrastructure/clusters/' + encodeURIComponent(node.id) + '/refresh' + (daily ? '?mode=daily' : ''), {
 				credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
 			});
@@ -738,9 +807,9 @@
 			tags.forEach(function (tag) { fillTagRow(wrapper, tag); });
 			var note = document.createElement('p');
 			note.className = 'help-block';
-			note.textContent = 'Prefilled by Infra Explorer (folders): ' + tags.map(function (tag) {
+			note.textContent = t('wizard.prefilled', { tags: tags.map(function (tag) {
 				return tag.name + '=' + tag.value;
-			}).join(', ');
+			}).join(', ') });
 			wrapper.parentNode.insertBefore(note, wrapper.nextSibling);
 		});
 		observer.observe(modal, { childList: true, subtree: true });
@@ -811,14 +880,14 @@
 
 	function openFolderDialog(node) {
 		closeFolderDialog();
-		showStatus('Loading folders …', false);
+		showStatus(t('status.loadingFolders'), false);
 		fresh('/vm-folders').then(function (data) {
 			statusLine.hidden = true;
 			var levels = data.levels || [];
 			var vm = (data.vms || []).filter(function (item) { return item.id === node.id; })[0] || node;
 			buildFolderDialog(node, vm, levels, data.vms || []);
 		}, function (error) {
-			showStatus('Could not load folders (' + errorText(error) + ')', true);
+			showStatus(t('status.foldersFailed', { error: errorText(error) }), true);
 		});
 	}
 
@@ -903,6 +972,13 @@
 				fields.appendChild(row);
 				return input;
 			},
+			// Read-only line: label above, value below
+			addInfo: function (labelText, value) {
+				var row = el('div', 'ie-field ie-info');
+				row.appendChild(el('span', 'ie-info-label', labelText));
+				row.appendChild(el('span', 'ie-info-value', value));
+				fields.appendChild(row);
+			},
 			addButton: function (labelText, primary) {
 				var button = el('button', 'ie-button' + (primary ? ' ie-button-primary' : ''), labelText);
 				button.type = primary ? 'submit' : 'button';
@@ -928,12 +1004,12 @@
 				if (revokes(failure)) {
 					closeFolderDialog();
 					discardAll();
-					showStatus('Saving failed: ' + saveErrorText(failure), true);
+					showStatus(t('dialog.saveFailed', { error: saveErrorText(failure) }), true);
 					focusOrFallback(null);
 					return;
 				}
 				api.busy(false);
-				api.showError('Saving failed: ' + saveErrorText(failure), focus);
+				api.showError(t('dialog.saveFailed', { error: saveErrorText(failure) }), focus);
 			},
 			close: function () {
 				closeFolderDialog();
@@ -968,27 +1044,26 @@
 	}
 
 	function buildFolderDialog(node, vm, levels, vms) {
-		var dialog = createDialog('Folder of ' + node.name, vm.tenant ? 'Tenant: ' + vm.tenant : null,
-			'An empty level ends the path. Deeper levels are removed.');
+		var dialog = createDialog(t('folder.title', { name: node.name }), vm.tenant ? t('folder.tenant', { tenant: vm.tenant }) : null,
+			t('folder.hint'));
 		var inputs = levels.map(function (level, index) {
-			return dialog.addInput('Level ' + (index + 1) + ' (' + level + ')', vm.folders && vm.folders[index],
+			return dialog.addInput(t('folder.level', { number: index + 1, tag: level }), vm.folders && vm.folders[index],
 				folderSuggestions(vms, vm, index));
 		});
-		var save = dialog.addButton('Save', true);
-		var clear = dialog.addButton('No folder');
-		var cancel = dialog.addButton('Cancel');
+		var save = dialog.addButton(t('button.save'), true);
+		var clear = dialog.addButton(t('button.noFolder'));
+		var cancel = dialog.addButton(t('button.cancel'));
 
 		function submit(path) {
 			var gap = path.indexOf('');
 			if (gap !== -1 && path.slice(gap).some(function (name) { return name !== ''; })) {
-				dialog.showError('Level ' + (gap + 1) + ' is empty, but a deeper level has a folder.', inputs[gap]);
+				dialog.showError(t('folder.gap', { number: gap + 1 }), inputs[gap]);
 				return;
 			}
 			dialog.busy(true);
 			saveFolders(node, path.filter(function (name) { return name !== ''; })).then(function (result) {
 				dialog.close();
-				showStatus(node.name + ': ' + (result.vm.folders && result.vm.folders.length ?
-					'folder ' + result.vm.folders.join(' / ') : 'no folder') + '.', false);
+				showStatus(folderResult(node.name, result.vm.folders), false);
 				if (result.shown) {
 					revealPath(treeLabels(result.shown), result.shown.id);
 				}
@@ -1008,14 +1083,13 @@
 
 	// Renames the levels (tag names, plugin setting folderTags); optionally the tags of the VMs as well
 	function openLevelDialog(levels) {
-		var dialog = createDialog('Edit levels', 'The names are the tag names of the folder levels and apply to all users.',
-			'Without renaming them as well, existing tags no longer belong to a level; the VMs then lose this folder.');
+		var dialog = createDialog(t('levels.title'), t('levels.sub'), t('levels.hint'));
 		var inputs = levels.map(function (level, index) {
-			return dialog.addInput('Level ' + (index + 1), level);
+			return dialog.addInput(t('levels.level', { number: index + 1 }), level);
 		});
-		var migrate = dialog.addCheckbox('Also rename the existing tags on the VMs', true);
-		var save = dialog.addButton('Save', true);
-		var cancel = dialog.addButton('Cancel');
+		var migrate = dialog.addCheckbox(t('levels.migrate'), true);
+		var save = dialog.addButton(t('button.save'), true);
+		var cancel = dialog.addButton(t('button.cancel'));
 
 		dialog.form.addEventListener('submit', function (event) {
 			event.preventDefault();
@@ -1032,14 +1106,15 @@
 				return;
 			}
 			if (migrate.checked && renames.some(function (pair) { return levels.indexOf(pair[1]) !== -1; })) {
-				dialog.showError('When renaming the tags as well, a new name must not be a current level (to swap names, rename in two steps).', save);
+				dialog.showError(t('levels.swap'), save);
 				return;
 			}
 			dialog.busy(true);
 			saveLevels(names, migrate.checked ? renames : []).then(function (result) {
 				dialog.close();
-				showStatus('Levels saved' + (result ? ': ' + result.changed + (result.changed === 1 ? ' VM' : ' VMs') +
-					' renamed' + (result.skipped ? ', ' + result.skipped + ' skipped (tag already present or changed)' : '') : '') + '.', false);
+				showStatus(!result ? t('levels.saved') : result.skipped ?
+					tn('levels.savedSkipped', result.changed, { skipped: formatNumber(result.skipped) }) :
+					tn('levels.savedRenamed', result.changed), false);
 			}, function (failure) {
 				dialog.fail(failure, save);
 			});
@@ -1048,17 +1123,31 @@
 		dialog.show(inputs[0] || save);
 	}
 
+	// Name, version, author and license of the plugin (rendered into the markup by the overlay provider)
+	function openAboutDialog() {
+		var dialog = createDialog(t('about.title'), t('about.description'), t('about.hint', { license: root.dataset.ieLicense || 'MIT' }));
+		dialog.addInfo(t('about.version'), root.dataset.ieVersion || '–');
+		dialog.addInfo(t('about.author'), root.dataset.ieAuthor || '–');
+		dialog.addInfo(t('about.license'), root.dataset.ieLicense || '–');
+		var close = dialog.addButton(t('button.close'), true);
+		dialog.form.addEventListener('submit', function (event) {
+			event.preventDefault();
+			dialog.close();
+		});
+		dialog.show(close);
+	}
+
 	// Same rules as the route: not empty, at most 100 characters, no comma, no duplicates
 	function levelProblem(names) {
 		for (var i = 0; i < names.length; i++) {
 			if (!names[i]) {
-				return { index: i, text: 'Level ' + (i + 1) + ' needs a name.' };
+				return { index: i, text: t('levels.empty', { number: i + 1 }) };
 			}
 			if (names[i].indexOf(',') !== -1) {
-				return { index: i, text: 'Level names must not contain a comma.' };
+				return { index: i, text: t('levels.comma') };
 			}
 			if (names.indexOf(names[i]) !== i) {
-				return { index: i, text: 'The name “' + names[i] + '” is used twice.' };
+				return { index: i, text: t('levels.twice', { name: names[i] }) };
 			}
 		}
 		return null;
@@ -1074,8 +1163,7 @@
 				return rebuildInstances().then(function () { return result; });
 			}, function (failure) {
 				if (result) {
-					failure.message = 'Tags renamed, but the setting was not saved (' + failure.message +
-						') – please save again';
+					failure.message = t('levels.settingFailed', { error: failure.message });
 				}
 				throw failure;
 			});
@@ -1085,7 +1173,7 @@
 	function apiJson(response) {
 		var contentType = response.headers.get('Content-Type') || '';
 		if (response.redirected || contentType.indexOf('json') === -1) {
-			var invalid = new Error('no valid response – session expired? Reload the page');
+			var invalid = new Error(t('error.session'));
 			invalid.session = true;
 			throw invalid;
 		}
@@ -1105,7 +1193,7 @@
 		}).then(apiJson).then(function (data) {
 			var plugin = (data.plugins || []).filter(function (item) { return item.code === 'infra-explorer'; })[0];
 			if (!plugin) {
-				throw new Error('plugin not found');
+				throw new Error(t('error.pluginMissing'));
 			}
 			var config = {};
 			Object.keys(plugin.config || {}).forEach(function (key) { config[key] = plugin.config[key]; });
@@ -1120,12 +1208,11 @@
 	// Renames a folder (folder node of the instances view) for all VMs below it
 	function openRenameDialog(folder, siblings) {
 		var where = [folder.tenant].concat(folder.path.slice(0, -1)).filter(Boolean).join(' / ');
-		var dialog = createDialog('Rename folder', where ? 'In: ' + where : null,
-			'Applies to ' + (folder.count === 1 ? 'the VM' : 'all ' + folder.count + ' VMs') +
-			' in this folder and its subfolders.');
-		var input = dialog.addInput('New name', folder.name);
-		var save = dialog.addButton('Rename', true);
-		var cancel = dialog.addButton('Cancel');
+		var dialog = createDialog(t('rename.title'), where ? t('rename.where', { path: where }) : null,
+			tn('rename.hint', folder.count));
+		var input = dialog.addInput(t('rename.name'), folder.name);
+		var save = dialog.addButton(t('button.rename'), true);
+		var cancel = dialog.addButton(t('button.cancel'));
 		var baseHint = dialog.hint.textContent;
 
 		// Renaming to the name of a sibling merges both folders; the hint says so before saving
@@ -1133,14 +1220,14 @@
 			var name = input.value.trim();
 			// Tag values are compared exactly, like the tree groups them
 			var merges = name !== folder.name && siblings.indexOf(name) !== -1;
-			dialog.hint.textContent = baseHint + (merges ? ' A folder “' + name + '” already exists; both will be merged.' : '');
+			dialog.hint.textContent = baseHint + (merges ? ' ' + t('rename.merge', { name: name }) : '');
 		});
 
 		dialog.form.addEventListener('submit', function (event) {
 			event.preventDefault();
 			var name = input.value.trim();
 			if (!name) {
-				dialog.showError('The new name must not be empty.', input);
+				dialog.showError(t('rename.empty'), input);
 				return;
 			}
 			if (name === folder.name) {
@@ -1150,7 +1237,7 @@
 			dialog.busy(true);
 			renameFolder(folder, name).then(function (result) {
 				dialog.close();
-				showStatus('Folder renamed to “' + name + '” (' + result.changed + (result.changed === 1 ? ' VM' : ' VMs') + ').', false);
+				showStatus(tn('rename.done', result.changed, { name: name }), false);
 				revealPath([folder.tenant].concat(result.path || []).filter(Boolean), null);
 			}, function (failure) {
 				dialog.fail(failure, input);
@@ -1199,8 +1286,7 @@
 		}).then(function (response) {
 			var contentType = response.headers.get('Content-Type') || '';
 			if (response.redirected || contentType.indexOf('json') === -1) {
-				var invalid = new Error(response.url.indexOf('invalid-csrf') !== -1 ?
-					'invalid security token – reload the page' : 'no valid response – session expired? Reload the page');
+				var invalid = new Error(response.url.indexOf('invalid-csrf') !== -1 ? t('error.csrf') : t('error.session'));
 				invalid.session = response.url.indexOf('invalid-csrf') === -1;
 				throw invalid;
 			}
@@ -1336,19 +1422,20 @@
 
 	function errorText(error) {
 		if (error.status === 403) {
-			return 'Permission denied.';
+			return t('error.forbiddenView');
 		}
 		if (error.status === 404) {
-			return 'Not found or not visible.';
+			return t('error.notFound');
 		}
-		return 'Loading failed (' + error.message + ').';
+		return t('error.loading', { error: error.message });
 	}
 
 	function powerBadge(state) {
-		var label = POWER_LABELS[state] || state;
-		var badge = el('span', 'ie-power ie-power-' + (POWER_LABELS[state] ? state : 'unknown'));
-		badge.title = 'Power: ' + label;
-		badge.appendChild(el('span', 'ie-sr', 'Power ' + label));
+		var known = POWER_STATES.indexOf(state) !== -1;
+		var label = known ? t('power.' + state) : state;
+		var badge = el('span', 'ie-power ie-power-' + (known ? state : 'unknown'));
+		badge.title = t('power.title', { state: label });
+		badge.appendChild(el('span', 'ie-sr', t('power.title', { state: label })));
 		return badge;
 	}
 
@@ -1358,19 +1445,32 @@
 			path: function (node) { return '/hosts?clusterId=' + encodeURIComponent(node.id); },
 			items: function (data) { return data.hosts; },
 			childKind: 'host',
-			empty: 'No hosts.'
+			empty: 'empty.hosts'
 		},
 		host: {
 			path: function (node) { return '/vms?hostId=' + encodeURIComponent(node.id); },
 			items: function (data) { return data.vms; },
 			childKind: 'vm',
-			empty: 'No VMs.'
+			empty: 'empty.vms'
 		},
 		storageCluster: {
 			path: function (node) { return '/datastores?clusterId=' + encodeURIComponent(node.id); },
 			items: function (data) { return data.datastores; },
 			childKind: 'datastore',
-			empty: 'No datastores.'
+			empty: 'empty.datastores'
+		},
+		networkCluster: {
+			path: function (node) { return '/networks?clusterId=' + encodeURIComponent(node.id); },
+			items: function (data) { return networkItems(data); },
+			childKind: 'network',
+			empty: 'empty.networks'
+		},
+		// The VMs of a network come with the networks of its cluster (same answer, no extra request)
+		network: {
+			path: function (node) { return '/networks?clusterId=' + encodeURIComponent(node.clusterId); },
+			items: function (data, node) { return networkVms(data, node); },
+			childKind: 'networkVm',
+			empty: 'empty.networkVms'
 		}
 	};
 
@@ -1383,7 +1483,7 @@
 			value /= 1024;
 			unit++;
 		}
-		return value.toLocaleString(undefined, { maximumFractionDigits: value < 10 && unit > 0 ? 1 : 0 }) + ' ' + UNITS[unit];
+		return formatNumber(value, { maximumFractionDigits: value < 10 && unit > 0 ? 1 : 0 }) + ' ' + UNITS[unit];
 	}
 
 	// Used space as bar and text; nothing if the capacity is unknown
@@ -1400,8 +1500,8 @@
 		track.appendChild(bar);
 		box.appendChild(track);
 		box.appendChild(el('span', 'ie-usage-text',
-			formatBytes(used) + ' / ' + formatBytes(node.storageSize) + ' (' + percent + ' %)'));
-		box.title = formatBytes(node.freeSpace) + ' free';
+			formatBytes(used) + ' / ' + formatBytes(node.storageSize) + ' (' + formatNumber(percent) + ' %)'));
+		box.title = t('storage.free', { size: formatBytes(node.freeSpace) });
 		return box;
 	}
 
@@ -1468,7 +1568,7 @@
 		bar.style.width = Math.min(100, Math.max(0, percent)) + '%';
 		track.appendChild(bar);
 		line.appendChild(track);
-		line.appendChild(el('span', 'ie-load-value', Math.round(percent) + ' %'));
+		line.appendChild(el('span', 'ie-load-value', formatNumber(Math.round(percent)) + ' %'));
 		line.title = title;
 		return line;
 	}
@@ -1480,11 +1580,11 @@
 		}
 		box.replaceChildren();
 		if (typeof load.cpu === 'number') {
-			box.appendChild(meterLine('CPU', load.cpu, 'CPU ' + load.cpu.toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' %'));
+			box.appendChild(meterLine('CPU', load.cpu, t('load.cpu', { value: formatNumber(load.cpu, { maximumFractionDigits: 1 }) })));
 		}
 		if (typeof load.usedMemory === 'number' && load.maxMemory > 0) {
 			box.appendChild(meterLine('RAM', load.usedMemory * 100 / load.maxMemory,
-				'RAM ' + formatBytes(load.usedMemory) + ' / ' + formatBytes(load.maxMemory) + ' used'));
+				t('load.ram', { used: formatBytes(load.usedMemory), max: formatBytes(load.maxMemory) })));
 		}
 		if (!box.childNodes.length) {
 			box.remove();
@@ -1519,6 +1619,11 @@
 		if (kind === 'datastore') {
 			return datastoreItem(node);
 		}
+		// VMs below a network are VM rows (power updates, menu) with their addresses in that network
+		var addresses = kind === 'networkVm' ? node.ipAddresses || [] : null;
+		if (addresses) {
+			kind = 'vm';
+		}
 		var item = el('li', 'ie-node ie-node-' + kind);
 		var row = el('div', 'ie-row');
 		var level = LEVELS[kind];
@@ -1529,7 +1634,7 @@
 			var toggle = el('button', 'ie-toggle');
 			toggle.type = 'button';
 			toggle.setAttribute('aria-expanded', 'false');
-			toggle.setAttribute('aria-label', 'Expand ' + node.name);
+			toggle.setAttribute('aria-label', t('tree.expand', { name: node.name }));
 			toggle.appendChild(el('span', 'ie-caret'));
 			toggle.appendChild(el('span', 'ie-name', node.name));
 			toggle.addEventListener('click', function () {
@@ -1541,34 +1646,46 @@
 			row.appendChild(nodeLabel(node));
 		}
 		if (node.managed === false) {
-			row.appendChild(el('span', 'ie-tag', '(unmanaged)'));
+			row.appendChild(el('span', 'ie-tag', t('tag.unmanaged')));
+		}
+		if (addresses && addresses.length) {
+			var ips = el('span', 'ie-sub ie-ips', addresses.join(', '));
+			ips.title = t('network.addresses', { addresses: addresses.join(', ') });
+			row.appendChild(ips);
+		}
+		if (kind === 'network') {
+			networkRow(row, node);
 		}
 		if (kind === 'host') {
-			var maintenanceTag = el('span', 'ie-tag ie-maintenance', '(maintenance)');
+			var maintenanceTag = el('span', 'ie-tag ie-maintenance', t('tag.maintenance'));
 			maintenanceTag.hidden = !(hostMaintenance.hasOwnProperty(node.id) ? hostMaintenance[node.id] : node.maintenance);
 			row.appendChild(maintenanceTag);
 		}
 		if (node.hostName) {
 			var host = el('span', 'ie-host', node.hostName);
-			host.title = 'Host: ' + node.hostName;
+			host.title = t('tree.host', { name: node.hostName });
 			row.appendChild(host);
 		}
 		if (node.powerState) {
 			row.appendChild(powerBadge(vmPower[node.id] || node.powerState));
-		} else if (node.status) {
+		} else if (node.status && kind !== 'network') {
 			row.appendChild(el('span', 'ie-meta', node.status));
 		}
 		if (kind === 'vm') {
 			item.dataset.ieVmId = String(node.id);
-			addActions(row, 'Actions for ' + node.name, function () { return menuEntries(node); });
+			addActions(row, t('menu.actionsVm', { name: node.name }), function () { return menuEntries(node); });
+		} else if (kind === 'network') {
+			if (isLocalPath(node.url)) {
+				addActions(row, t('menu.actionsNetwork', { name: node.name }), function () { return networkEntries(node); });
+			}
 		} else if (kind === 'host') {
 			item.dataset.ieHostId = String(node.id);
-			addActions(row, 'Actions for host ' + node.name, function () { return hostEntries(node); });
+			addActions(row, t('menu.actionsHost', { name: node.name }), function () { return hostEntries(node); });
 			if (node.clusterId != null) {
 				attachLoad(row, clusterHostStats(node.clusterId), function (stats) { return stats[node.id]; });
 			}
-		} else if (kind === 'cluster' || kind === 'storageCluster') {
-			addActions(row, 'Actions for cluster ' + node.name, function () { return clusterEntries(node); });
+		} else if (kind === 'cluster' || kind === 'storageCluster' || kind === 'networkCluster') {
+			addActions(row, t('menu.actionsCluster', { name: node.name }), function () { return clusterEntries(node); });
 			if (kind === 'cluster') {
 				attachLoad(row, clusterHostStats(node.id), clusterLoad);
 			}
@@ -1612,9 +1729,9 @@
 		}
 		row.appendChild(text);
 		if (node.online === false) {
-			row.appendChild(el('span', 'ie-tag ie-warn', '(offline)'));
+			row.appendChild(el('span', 'ie-tag ie-warn', t('tag.offline')));
 		} else if (node.status === 'inactive') {
-			row.appendChild(el('span', 'ie-tag', '(inactive)'));
+			row.appendChild(el('span', 'ie-tag', t('tag.inactive')));
 		}
 		var bar = usage(node);
 		if (bar) {
@@ -1624,8 +1741,57 @@
 		return item;
 	}
 
-	function showChildren(children, level, data) {
-		var nodes = level.items(data) || [];
+	// --- Networks ----------------------------------------------------------------------------------------------
+
+	// Networks of a cluster answer; VMs outside any shown network follow as one extra node
+	function networkItems(data) {
+		var nodes = (data.networks || []).slice();
+		var without = data.withoutNetwork || [];
+		if (without.length) {
+			nodes.push({ id: 'without', name: t('network.without'), clusterId: data.clusterId, vmCount: without.length,
+				without: true });
+		}
+		return nodes;
+	}
+
+	function networkVms(data, node) {
+		if (node.without) {
+			return data.withoutNetwork || [];
+		}
+		var network = (data.networks || []).filter(function (item) { return item.id === node.id; })[0];
+		return network ? network.vms || [] : [];
+	}
+
+	// VLAN and IP networks next to the name, number of VMs at the end
+	function networkRow(row, node) {
+		var parts = [];
+		if (node.vlanId != null) {
+			parts.push(t('network.vlan', { id: node.vlanId }));
+		}
+		[node.cidr, node.cidrIPv6].forEach(function (cidr) {
+			if (cidr) {
+				parts.push(cidr);
+			}
+		});
+		(node.subnets || []).forEach(function (subnet) {
+			parts.push(subnet.cidr ? (subnet.name ? subnet.name + ' ' + subnet.cidr : subnet.cidr) : subnet.name);
+		});
+		if (parts.length) {
+			var info = el('span', 'ie-sub ie-net', parts.join(' · '));
+			info.title = parts.join('\n');
+			row.appendChild(info);
+		}
+		var count = el('span', 'ie-meta', formatNumber(node.vmCount || 0));
+		count.title = tn('network.vmCount', node.vmCount || 0);
+		row.appendChild(count);
+	}
+
+	function networkEntries(node) {
+		return [{ label: t('menu.details'), run: function () { window.location.href = node.url; } }];
+	}
+
+	function showChildren(children, level, data, node) {
+		var nodes = level.items(data, node) || [];
 		children.replaceChildren(list(level.childKind, nodes, level.empty));
 		prefetchBudget = Math.min(PREFETCH_TOTAL, prefetchBudget + PREFETCH_LIMIT);
 		prefetchTree(level.childKind, nodes);
@@ -1636,30 +1802,30 @@
 		var children = item.querySelector(':scope > .ie-children');
 		if (expanded) {
 			toggle.setAttribute('aria-expanded', 'false');
-			toggle.setAttribute('aria-label', 'Expand ' + node.name);
+			toggle.setAttribute('aria-label', t('tree.expand', { name: node.name }));
 			if (children) {
 				children.remove();
 			}
 			return;
 		}
 		toggle.setAttribute('aria-expanded', 'true');
-		toggle.setAttribute('aria-label', 'Collapse ' + node.name);
+		toggle.setAttribute('aria-label', t('tree.collapse', { name: node.name }));
 		children = el('div', 'ie-children');
 		// Replaced in the same frame when the data is already prefetched
-		children.appendChild(message('Loading …'));
+		children.appendChild(message(t('tree.loading')));
 		item.appendChild(children);
 
 		var update = updater(children, function (data) {
-			showChildren(children, level, data);
+			showChildren(children, level, data, node);
 		}, function () {
 			return children.isConnected;
 		});
 		withData(level.path(node), update.render, update.fail);
 	}
 
-	function list(kind, nodes, emptyText) {
+	function list(kind, nodes, emptyKey) {
 		if (!nodes.length) {
-			return message(emptyText);
+			return message(t(emptyKey));
 		}
 		var ul = el('ul', 'ie-tree');
 		nodes.forEach(function (node) {
@@ -1671,10 +1837,10 @@
 	// Cluster list as first level of a view; kind decides what expanding a cluster shows
 	function clusterView(kind) {
 		var container = el('div', 'ie-view');
-		container.appendChild(message('Loading …'));
+		container.appendChild(message(t('tree.loading')));
 		var update = updater(container, function (data) {
 			var clusters = data.clusters || [];
-			container.replaceChildren(list(kind, clusters, 'No clusters visible.'));
+			container.replaceChildren(list(kind, clusters, 'empty.clusters'));
 			prefetchTree(kind, clusters);
 		});
 		withData('/clusters', update.render, update.fail);
@@ -1689,14 +1855,18 @@
 		return clusterView('storageCluster');
 	}
 
-	var collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+	function loadNetworks() {
+		return clusterView('networkCluster');
+	}
+
+	var collator = new Intl.Collator(LOCALE, { sensitivity: 'base', numeric: true });
 
 	// Path of a VM: tenant first, then the folders from its tags. Tenants are keyed by id, folders by name.
 	function folderPath(vm) {
 		var path = [];
 		if (vm.tenant || vm.tenantId != null) {
 			path.push({ key: 'tenant:' + (vm.tenantId != null ? vm.tenantId : vm.tenant),
-				name: vm.tenant || ('Tenant ' + vm.tenantId), kind: 'tenant' });
+				name: vm.tenant || t('tenant.fallback', { id: vm.tenantId }), kind: 'tenant' });
 		}
 		(vm.folders || []).forEach(function (name) {
 			path.push({ key: 'folder:' + name, name: name, kind: 'folder' });
@@ -1749,29 +1919,29 @@
 		var toggle = el('button', 'ie-toggle');
 		toggle.type = 'button';
 		toggle.setAttribute('aria-expanded', 'false');
-		toggle.setAttribute('aria-label', 'Expand ' + label);
+		toggle.setAttribute('aria-label', t('tree.expand', { name: label }));
 		toggle.appendChild(el('span', 'ie-caret'));
 		toggle.appendChild(el('span', 'ie-name', label));
 		row.appendChild(toggle);
-		row.appendChild(el('span', 'ie-meta', String(folder.count)));
+		row.appendChild(el('span', 'ie-meta', formatNumber(folder.count)));
 		item.appendChild(row);
 		makeDropTarget(row, folder, toggle);
 		row.addEventListener('contextmenu', function (event) {
 			var entries = [];
 			// New instances are created in the tenant of the session; Morpheus' wizard gets the folder tags
 			if (instanceCreate && folder.tenantId != null && folder.tenantId === instanceCreate.tenantId) {
-				entries.push({ label: 'New instance …', run: function () { newInstance(folder); } });
+				entries.push({ label: t('menu.newInstance'), run: function () { newInstance(folder); } });
 			}
 			if (folder.kind === 'folder' && folder.editable && folder.tenantId != null) {
 				var siblings = sortedFolders(parent).filter(function (other) { return other !== folder; })
 					.map(function (other) { return other.name; });
-				entries.push({ label: 'Rename …', run: function () { openRenameDialog(folder, siblings); } });
+				entries.push({ label: t('menu.rename'), run: function () { openRenameDialog(folder, siblings); } });
 			}
 			if (!entries.length) {
 				return;
 			}
 			event.preventDefault();
-			showMenu('Actions for ' + (folder.kind === 'tenant' ? 'tenant ' : 'folder ') + label, entries, toggle,
+			showMenu(t(folder.kind === 'tenant' ? 'menu.actionsTenant' : 'menu.actionsFolder', { name: label }), entries, toggle,
 				menuAnchor(event, toggle));
 		});
 
@@ -1779,7 +1949,7 @@
 			var expanded = toggle.getAttribute('aria-expanded') === 'true';
 			var children = item.querySelector(':scope > .ie-children');
 			toggle.setAttribute('aria-expanded', String(!expanded));
-			toggle.setAttribute('aria-label', (expanded ? 'Expand ' : 'Collapse ') + label);
+			toggle.setAttribute('aria-label', t(expanded ? 'tree.expand' : 'tree.collapse', { name: label }));
 			if (expanded) {
 				if (children) {
 					children.remove();
@@ -1877,11 +2047,10 @@
 
 	function moveVm(vm, folder) {
 		var path = folder.path || [];
-		var target = path.length ? 'folder ' + path.join(' / ') : 'no folder';
-		showStatus('Moving ' + vm.name + ' to ' + target + ' …', false);
+		showStatus(path.length ? t('move.toFolder', { name: vm.name, path: path.join(' / ') }) :
+			t('move.toNoFolder', { name: vm.name }), false);
 		saveFolders(vm, path).then(function (result) {
-			showStatus(vm.name + ': ' + (result.vm.folders && result.vm.folders.length ?
-				'folder ' + result.vm.folders.join(' / ') : 'no folder') + '.', false);
+			showStatus(folderResult(vm.name, result.vm.folders), false);
 			if (result.shown) {
 				revealPath(treeLabels(result.shown), result.shown.id);
 			}
@@ -1889,26 +2058,32 @@
 			if (revokes(failure)) {
 				discardAll();
 			}
-			showStatus('Could not move ' + vm.name + ': ' + saveErrorText(failure), true);
+			showStatus(t('move.failed', { name: vm.name, error: saveErrorText(failure) }), true);
 		});
+	}
+
+	// Status after a folder change: "vm-1: folder Prod / Web."
+	function folderResult(name, folders) {
+		return folders && folders.length ? t('folder.resultFolder', { name: name, path: folders.join(' / ') }) :
+			t('folder.resultNone', { name: name });
 	}
 
 	function loadVms() {
 		var container = el('div', 'ie-view');
-		container.appendChild(message('Loading …'));
+		container.appendChild(message(t('tree.loading')));
 		var update = updater(container, function (data) {
 			var vms = data.vms || [];
 			if (!vms.length) {
-				container.replaceChildren(message('No instances visible.'));
+				container.replaceChildren(message(t('empty.instances')));
 				return;
 			}
 			folderLevels = data.levels || [];
 			instanceCreate = data.create || null;
 			container.replaceChildren(folderContent(buildFolderTree(vms)));
-			var levels = ['Tenant'].concat(data.levels || []);
-			var hint = message('Levels: ' + levels.join(' / '), 'ie-hint');
+			var levels = [t('levels.tenant')].concat(data.levels || []);
+			var hint = message(t('levels.list', { levels: levels.join(' / ') }), 'ie-hint');
 			if (data.levelsEditable) {
-				var edit = el('button', 'ie-link-button', 'Edit levels …');
+				var edit = el('button', 'ie-link-button', t('levels.edit'));
 				edit.type = 'button';
 				edit.addEventListener('click', function () { openLevelDialog(data.levels || []); });
 				hint.appendChild(document.createTextNode(' '));
@@ -1920,7 +2095,7 @@
 		return container;
 	}
 
-	var VIEW_LOADERS = { clusters: loadClusters, vms: loadVms, storage: loadStorage };
+	var VIEW_LOADERS = { clusters: loadClusters, vms: loadVms, storage: loadStorage, networks: loadNetworks };
 
 	function showView(view, reload) {
 		currentView = view;
@@ -1989,8 +2164,8 @@
 		panel.style.height = custom && layout.height !== null ? 'min(' + layout.height + 'px, calc(100vh - 100px))' : '';
 		panel.classList.toggle('ie-maximized', layout.maximized);
 		maximizeButton.setAttribute('aria-pressed', String(layout.maximized));
-		maximizeButton.setAttribute('aria-label', layout.maximized ? 'Restore window size' : 'Maximize window');
-		maximizeButton.title = layout.maximized ? 'Restore' : 'Maximize';
+		maximizeButton.setAttribute('aria-label', t(layout.maximized ? 'panel.restoreLabel' : 'panel.maximizeLabel'));
+		maximizeButton.title = t(layout.maximized ? 'panel.restore' : 'panel.maximize');
 		updateGripValues();
 	}
 
@@ -2104,7 +2279,7 @@
 	function setOpen(open) {
 		panel.hidden = !open;
 		launcher.setAttribute('aria-expanded', String(open));
-		launcher.setAttribute('aria-label', open ? 'Close Infra Explorer' : 'Open Infra Explorer');
+		launcher.setAttribute('aria-label', t(open ? 'launcher.close' : 'launcher.open'));
 		if (open) {
 			showView(currentView);
 			updateGripValues();
@@ -2125,6 +2300,8 @@
 	reloadButton.addEventListener('click', function () {
 		showView(currentView, true);
 	});
+
+	aboutButton.addEventListener('click', openAboutDialog);
 
 	tabs.forEach(function (tab) {
 		tab.addEventListener('click', function () {

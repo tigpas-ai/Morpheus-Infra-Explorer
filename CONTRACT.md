@@ -11,7 +11,7 @@ plugin code. On every change: increase the version and record the change in the 
 | Method | Path | Purpose | Request | Response |
 |---|---|---|---|---|
 | – | (provider `infra-explorer.overlay`, GlobalUIComponentProvider) | Button at the bottom left and overlay on every page for signed-in users; UI only, no data | – | HTML in the page footer |
-| GET | `/assets/plugin/infra-explorer/infra-explorer.js`, `…/infra-explorer.css` | Script and styles of the overlay (internal, not for API clients); included with `?v=<checksum of the content>` because Morpheus lets browsers cache them for a year | – | JS/CSS |
+| GET | `/assets/plugin/infra-explorer/infra-explorer-messages.js`, `…/infra-explorer.js`, `…/infra-explorer.css` | Texts per language, script and styles of the overlay (internal, not for API clients); included with `?v=<checksum of the content>` because Morpheus lets browsers cache them for a year | – | JS/CSS |
 | GET | `/plugin/infra-explorer/clusters` | Clusters of all supported types (v1: HVM, `mvm-cluster`), sorted by name | – | `{"clusters":[node]}` |
 | GET | `/plugin/infra-explorer/hosts?clusterId=<id>` | Hosts of a cluster, sorted by name | `clusterId` (number, required) | `{"clusterId":<id>,"hosts":[node]}` |
 | GET | `/plugin/infra-explorer/vms?hostId=<id>` | VMs of a host (including discovered VMs without an instance), sorted by name | `hostId` (number, required) | `{"hostId":<id>,"vms":[node]}` |
@@ -86,4 +86,4 @@ English and meant for display, not for parsing.
 | 0.13.0 | 2026-10-25 | `vm-folders`: field `create` (tenant for new instances) | no |
 | 0.14.0 | 2026-10-25 | endpoint `POST level-rename`, `vm-folders`: `levelsEditable`; setting `folderTags` can be changed from the overlay | no |
 | 0.15.0 | 2026-10-31 | English texts: fallback tenant name `Tenant <id>` (was German), error texts and setting label in English | no (only display texts) |
-| 0.16.0 | 2026-10-31 | endpoint `networks` (networks of a cluster with their VMs), network node fields, permission `infrastructure-networks` | no |
+| 0.16.0 | 2026-10-31 | endpoint `networks` (networks of a cluster with their VMs), network node fields, permission `infrastructure-networks`; asset `infra-explorer-messages.js` (overlay texts per language) | no |

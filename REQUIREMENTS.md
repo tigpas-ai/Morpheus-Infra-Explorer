@@ -54,6 +54,18 @@ permissions). The entry survives logging out; renaming the user discards it.
 It therefore applies across tabs and sessions in this browser, but not on other devices. The plugin API offers no
 per-user storage on the server. The window limits the stored size so the panel never extends past the edge.
 
+Languages (requested 2026-10-31, implemented in 0.18.0): English by default, German as the first further language, more
+to follow. The overlay takes the language from the `lang` attribute of the Morpheus page (verified: `en-US`, with
+`Accept-Language: de` → `de-DE`); Morpheus sets it from the user locale, the appliance default locale or the browser
+(product documentation 9.1.0, "Supported Locales", p. 59–60). The plugin API offers no locale on `User` (verified in
+the Javadoc of 1.4.1), so the browser script translates. Texts per language in `infra-explorer-messages.js`; plural
+forms via `Intl.PluralRules`; missing languages and keys fall back to English. Route error texts and the setting label
+stay English.
+
+About (requested 2026-10-31, implemented in 0.18.0): an info button in the overlay header shows name, version (from the
+plugin manifest), author (Pascal Liehne) and license (MIT); author and description are also set on the plugin
+(`Plugin.setAuthor`/`setDescription`), so `GET /api/plugins` and the plugin list of Morpheus show them.
+
 Per cluster (requested 2026-10-25, implemented in 0.11.0): details page, refresh short/daily, edit.
 Per host: details page, enter/exit maintenance mode, restart, edit.
 

@@ -1,8 +1,8 @@
 # Infra Explorer – Morpheus plugin
 
 A Morpheus plugin for hierarchical infrastructure navigation. A button at the bottom left, available on every
-Morpheus page, opens an overlay with a cluster tree (clusters → hosts → VMs), VM folders (based on tags) and the
-storage of each cluster. From the tree you can open the VM page and console, start and stop VMs and open
+Morpheus page, opens an overlay with a cluster tree (clusters → hosts → VMs), VM folders (based on tags), the
+networks and the storage of each cluster. From the tree you can open the VM page and console, start and stop VMs and open
 reconfigure. The first version supports HVM clusters. Details and open points: [`REQUIREMENTS.md`](REQUIREMENTS.md).
 
 ## Features
@@ -10,11 +10,17 @@ reconfigure. The first version supports HVM clusters. Details and open points: [
 - **Instances** – VMs grouped by tenant and folders. Folders are plain Morpheus tags on the server
   (`Folder-1=Prod`, `Folder-2=Web` → `Prod / Web`), so they stay visible in the API and survive uninstalling the plugin.
   VMs can be moved by context menu or drag and drop; folders and levels can be renamed.
+- **Networks** – networks of each cluster with VLAN, IP networks (CIDR, subnets) and the number of VMs, and below
+  them the VMs with their addresses in that network. A VM with several network interfaces appears below each of its
+  networks.
 - **Storage** – datastores of each cluster with capacity and usage.
 - Actions via context menu (right-click, Shift+F10 or the context menu key): details page, console, power,
   reconfigure, convert to managed, maintenance mode, cluster refresh, new instance in a folder.
 - The permissions of the signed-in user apply: nothing is shown or offered that the user could not see or do in
   Morpheus.
+- Languages: English (default) and German. The overlay follows the language of the Morpheus UI (user or appliance
+  locale, otherwise the browser language).
+- The info button (ⓘ) in the overlay shows version, author and license.
 
 ## Requirements
 - Morpheus 9.1.0 or later (plugin API 1.4.1)
@@ -62,6 +68,14 @@ the instances view of the overlay.
 2. Build with `./gradlew shadowJar` and upload the jar to a test appliance.
 3. Check the result in the UI and/or via the API.
 4. Changed an endpoint, option or data format? → update `CONTRACT.md` in the same commit.
+
+### Translations
+All overlay texts live in [`src/assets/javascripts/infra-explorer-messages.js`](src/assets/javascripts/infra-explorer-messages.js),
+one object per language code. To add a language, copy the `en` object, name it after the language code (e.g. `fr`,
+or `pt-br` for a regional variant) and translate the values; keep the keys and the `{placeholders}`. Keys ending in
+`.one`/`.other` are plural forms ([`Intl.PluralRules`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Intl/PluralRules));
+add `.few`, `.many` … where the language needs them. Missing keys fall back to English. Messages returned by the
+plugin routes (e.g. validation errors) and the plugin setting label stay English.
 
 The Gradle project was created with the plugin generator of the Morpheus Developer Portal
 (https://developer.morpheusdata.com/start/, `morpheusVersion=9.1.x`); the plugin API was then set to 1.4.1

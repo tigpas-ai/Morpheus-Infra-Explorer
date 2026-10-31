@@ -115,6 +115,7 @@
 .ie-menu-item:focus-visible,
 .ie-tab:focus-visible,
 .ie-maximize:focus-visible,
+.ie-about:focus-visible,
 .ie-resize:focus-visible,
 .ie-reload:focus-visible,
 .ie-close:focus-visible,
@@ -221,6 +222,7 @@
 }
 
 .ie-tab,
+.ie-about,
 .ie-maximize,
 .ie-reload,
 .ie-close {
@@ -255,6 +257,7 @@
 	line-height: 1;
 }
 
+.ie-about,
 .ie-maximize {
 	display: flex;
 	align-items: center;
@@ -269,6 +272,7 @@
 	display: block;
 }
 
+#ie-root .ie-about:hover,
 #ie-root .ie-maximize:hover,
 #ie-root .ie-reload:hover,
 #ie-root .ie-close:hover {
@@ -389,7 +393,8 @@
 }
 
 .ie-node-cluster > .ie-row .ie-name,
-.ie-node-storageCluster > .ie-row .ie-name {
+.ie-node-storageCluster > .ie-row .ie-name,
+.ie-node-networkCluster > .ie-row .ie-name {
 	font-weight: 600;
 }
 
@@ -488,6 +493,28 @@
 	color: var(--ie-muted);
 	font-size: 11px;
 	white-space: nowrap;
+}
+
+/* VLAN and IP networks of a network, addresses of a VM in a network: shortened first when space is short */
+.ie-net,
+.ie-ips {
+	flex: 0 1 auto;
+	min-width: 0;
+	margin-left: 8px;
+}
+
+.ie-net + .ie-meta {
+	flex: none;
+}
+
+.ie-info-value {
+	color: var(--ie-fg);
+	overflow-wrap: anywhere;
+}
+
+.ie-info-label {
+	color: var(--ie-muted);
+	font-size: 12px;
 }
 
 .ie-host {

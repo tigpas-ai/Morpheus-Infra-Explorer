@@ -100,14 +100,29 @@ class InfraExplorerOverlayProviderSpec extends Specification {
 		!html.contains('secret-')
 	}
 
-	def "loads script and stylesheet from the plugin asset path with the page nonce"() {
+	def "loads texts, script and stylesheet from the plugin asset path with the page nonce, texts first"() {
 		when:
 		String html = provider.renderTemplate(new User(), new Account()).html
 
 		then:
 		html.contains('<script src="/assets/plugin/infra-explorer/infra-explorer.js?v=' + provider.assetVersion() + '" nonce="test-nonce">')
+		html.indexOf('/infra-explorer-messages.js?v=' + provider.assetVersion() + '" nonce="test-nonce">') != -1
+		html.indexOf('/infra-explorer-messages.js') < html.indexOf('/infra-explorer.js')
 		html.contains('href="/assets/plugin/infra-explorer/infra-explorer.css?v=' + provider.assetVersion() + '"')
 		provider.assetVersion() ==~ /[0-9a-f]{12}/
+	}
+
+	def "renders version, author and license for the about dialog"() {
+		given:
+		plugin.setVersion('1.2.3')
+
+		when:
+		String html = provider.renderTemplate(new User(), new Account()).html
+
+		then:
+		html.contains('data-ie-version="1.2.3"')
+		html.contains('data-ie-author="Pascal Liehne"')
+		html.contains('data-ie-license="MIT"')
 	}
 
 	def "needs no additional content security policy"() {
