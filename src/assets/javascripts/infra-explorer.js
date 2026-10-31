@@ -1837,6 +1837,10 @@
 			var text = PATH_SYMBOLS[state] + ' ' + name;
 			if (typeof host.activePaths === 'number' && typeof host.totalPaths === 'number') {
 				text += ': ' + t('paths.active', { active: formatNumber(host.activePaths), total: formatNumber(host.totalPaths) });
+				// Paths the host has dropped entirely are only visible against the other hosts
+				if (typeof host.expectedPaths === 'number' && host.expectedPaths > host.totalPaths) {
+					text += ' ' + t('paths.expected', { expected: formatNumber(host.expectedPaths) });
+				}
 			}
 			return host.error ? text + ' (' + host.error + ')' : text;
 		});

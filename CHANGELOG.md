@@ -3,6 +3,10 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.19.1 – 2026-10-31
+- Storage path tooltip: hosts with fewer paths than the other hosts show the expected number, e.g. "1/1 paths
+  active (expected 2)" (field `expectedPaths` of Storage Path Monitor 0.2.0).
+
 ## 0.19.0 – 2026-10-31
 - Storage view: path state per node for shared datastores ("Nodes: 2 ✅, 1 ⚠️"; muted while all nodes are OK, details
   per host in the tooltip). Optional: read in the background from the separate Storage Path Monitor plugin
