@@ -4,7 +4,7 @@ import groovy.transform.EqualsAndHashCode
 import groovy.transform.ToString
 
 /**
- * One node of the infrastructure tree (cluster, host or VM), independent of the cluster type.
+ * One node of the infrastructure tree (cluster, host, VM, datastore or network), independent of the cluster type.
  * Field set and JSON names are part of CONTRACT.md.
  */
 @ToString(includeNames = true, ignoreNulls = true)
@@ -52,11 +52,22 @@ class InfraNode {
 	Long freeSpace
 	Boolean online
 
+	/** Networks only: VLAN, IP networks (CIDR) of the network and its subnets, VMs connected to it and their number */
+	Integer vlanId
+	String cidr
+	String cidrIPv6
+	List<Map<String, Object>> subnets
+	List<InfraNode> vms
+	Integer vmCount
+	/** VMs below a network only: addresses of the VM's interfaces in this network */
+	List<String> ipAddresses
+
 	Map<String, Object> toJson() {
 		[id: id, name: name, status: status, powerState: powerState, type: type,
 		 clusterId: clusterId, hostId: hostId, instanceId: instanceId, managed: managed, url: url, storageSize: storageSize, freeSpace: freeSpace,
 		 online: online, hostName: hostName, tenantId: tenantId, tenant: tenant, folders: folders, instanceUrl: instanceUrl,
-		 maintenance: maintenance, actions: actions].findAll { it.value != null }
+		 maintenance: maintenance, actions: actions, vlanId: vlanId, cidr: cidr, cidrIPv6: cidrIPv6, subnets: subnets,
+		 vmCount: vmCount, vms: vms?.collect { it.toJson() }, ipAddresses: ipAddresses].findAll { it.value != null }
 	}
 
 	/** Sorts in place by name, case-insensitive; nodes without name first. */

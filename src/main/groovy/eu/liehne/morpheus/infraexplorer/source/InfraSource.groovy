@@ -57,4 +57,13 @@ interface InfraSource {
 
 	/** Datastores of a cluster, or {@code null} if the cluster is not visible or of another type */
 	List<InfraNode> listDatastores(User user, Long clusterId)
+
+	/**
+	 * Networks of a cluster with the VMs of the cluster connected to them ({@code vms}, each VM once per network with
+	 * its {@code ipAddresses} there, and {@code vmCount}), sorted by name. A network belongs to the cluster if one of its
+	 * hosts carries it or a VM of the cluster is connected to it. VMs with an interface outside any visible network
+	 * are collected in one extra node with {@code id == null} at the end. {@code null} if the cluster is not visible
+	 * or of another type.
+	 */
+	List<InfraNode> listNetworks(User user, Long clusterId)
 }

@@ -47,6 +47,7 @@ class InfraExplorerController implements PluginController {
 			Route.build("${BASE}/hosts".toString(), 'hosts', clusters),
 			Route.build("${BASE}/vms".toString(), 'vms', clusters),
 			Route.build("${BASE}/datastores".toString(), 'datastores', clusters),
+			Route.build("${BASE}/networks".toString(), 'networks', clusters),
 			Route.build("${BASE}/vm-folders".toString(), 'vmFolders', clusters),
 			Route.build("${BASE}/vm-folder".toString(), 'vmFolder', clusters),
 			Route.build("${BASE}/folder-rename".toString(), 'folderRename', clusters),
@@ -91,6 +92,27 @@ class InfraExplorerController implements PluginController {
 			Long clusterId = longParam(model, 'clusterId')
 			List<InfraNode> datastores = firstFound { it.listDatastores(user, clusterId) }
 			datastores == null ? null : [clusterId: clusterId, datastores: datastores*.toJson()]
+		}
+	}
+
+	/**
+	 * GET /plugin/infra-explorer/networks?clusterId=… – networks of a cluster with their VMs; VMs outside any
+	 * visible network in {@code withoutNetwork}
+	 */
+	JsonResponse networks(ViewModel model) {
+		handle(model, accessPolicy.canViewNetworks(model.user)) { User user ->
+			Long clusterId = longParam(model, 'clusterId')
+			List<InfraNode> networks = firstFound { it.listNetworks(user, clusterId) }
+			if (networks == null) {
+				return null
+			}
+			networks.each { network -> network.vms?.each { it.actions = accessPolicy.vmActions(user, it) } }
+			InfraNode without = networks.find { it.id == null }
+			Map body = [clusterId: clusterId, networks: networks.findAll { it.id != null }*.toJson()]
+			if (without) {
+				body.withoutNetwork = without.vms*.toJson()
+			}
+			body
 		}
 	}
 

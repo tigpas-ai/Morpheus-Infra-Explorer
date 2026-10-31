@@ -20,6 +20,8 @@ class AccessPolicy {
 	static final String SERVERS = 'admin-servers'
 	/** Infrastructure → Storage */
 	static final String STORAGE = 'infrastructure-storage'
+	/** Infrastructure → Networks */
+	static final String NETWORKS = 'infrastructure-networks'
 
 	/** Power Control (start, stop, restart): none, user (own workloads), full */
 	static final String POWER = 'provisioning-power'
@@ -60,6 +62,11 @@ class AccessPolicy {
 	/** Datastores are shown per cluster, so both permissions are needed. */
 	boolean canViewStorage(User user) {
 		return canViewClusters(user) && canRead(user, STORAGE)
+	}
+
+	/** Networks are shown per cluster with the VMs connected to them, so all three permissions are needed. */
+	boolean canViewNetworks(User user) {
+		return canViewServers(user) && canRead(user, NETWORKS)
 	}
 
 	/**

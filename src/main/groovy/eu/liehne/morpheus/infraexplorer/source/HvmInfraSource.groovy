@@ -12,7 +12,8 @@ import groovy.util.logging.Slf4j
 /**
  * HVM clusters: hosts are servers whose serverGroup is the cluster (and that have no parent), VMs are servers whose
  * parentServer is the host. Discovered VMs have no instance. Datastores reference their cluster with
- * refType {@code ComputeServerGroup} and refId.
+ * refType {@code ComputeServerGroup} and refId. Networks are tied to the hosts that carry them (network locations) and
+ * to the VMs through their interfaces.
  *
  * Every query is scoped with {@code new DataQuery(user)} and only loads the properties needed ({@code propertyList}
  * with {@code listOptions}): loading complete model objects takes about half a second per server on a test appliance, the
@@ -37,6 +38,18 @@ class HvmInfraSource implements InfraSource {
 												'instance.createdBy.id']
 	static final List<String> DATASTORE_PROPS = ['id', 'name', 'status', 'active', 'type', 'datastoreType.name',
 												 'storageSize', 'freeSpace', 'online', 'owner.id', 'refType', 'refId']
+	/**
+	 * One row per address of each interface of a server (left join: an interface without address gives one row with
+	 * {@code null}). The interface has no address column of its own; {@code interfaces.ipAddress} empties the query.
+	 */
+	static final List<String> INTERFACE_PROPS = ['id', 'interfaces.id', 'interfaces.network.id', 'interfaces.addresses.address']
+	static final List<String> NETWORK_PROPS = ['id', 'name', 'status', 'active', 'vlanId', 'cidr', 'cidrIPv6', 'type.name',
+											   'owner.id', 'visibility']
+	/** One row per location (host or cloud) of a network */
+	static final List<String> NETWORK_LOCATION_PROPS = ['id', 'locations.refType', 'locations.refId']
+	/** One row per subnet of a network */
+	static final List<String> SUBNET_PROPS = ['id', 'subnets.id', 'subnets.name', 'subnets.cidr']
+	static final String LOCATION_SERVER = 'ComputeServer'
 
 	private final MorpheusContext morpheus
 	private final AccessPolicy accessPolicy
@@ -318,6 +331,137 @@ class HvmInfraSource implements InfraSource {
 		return InfraNode.sortByName(datastores.collect { toDatastoreNode(it) })
 	}
 
+	/**
+	 * Hosts and VMs of the cluster, the VMs' interfaces, all visible networks with their locations and subnets, and the
+	 * VMs' instances: eight queries regardless of the size of the cluster.
+	 */
+	@Override
+	List<InfraNode> listNetworks(User user, Long clusterId) {
+		if (findCluster(user, clusterId) == null) {
+			return null
+		}
+		List<Map> hosts = servers(user, new DataQuery(user).withFilter('serverGroup.id', clusterId))
+			.findAll { (it['serverGroup.id'] as Long) == clusterId && isHost(user, it) }
+		Map<Long, Map> hostsById = hosts.collectEntries { [(it.id as Long): it] }
+		List<Map> vms = !hostsById ? [] : servers(user, new DataQuery(user).withFilter('parentServer.id', 'in', hostsById.keySet() as List))
+			.findAll {
+				hostsById.containsKey(it['parentServer.id'] as Long) &&
+					accessPolicy.canSeeTenant(user, it['account.id'] as Long)
+			}
+		List<Long> vmIds = vms.collect { it.id as Long }
+		// server id → network id (null: interface without network) → addresses
+		Map<Long, Map<Long, Set<String>>> attached = interfacesByServer(user, vmIds)
+
+		Map<Long, Map> networks = visibleNetworks(user)
+		Set<Long> carried = networksOnHosts(user, networks.keySet() as List, hostsById.keySet())
+		Set<Long> used = attached.values().collectMany { it.keySet() }.findAll { it != null } as Set
+		List<Long> networkIds = networks.keySet().findAll { it in carried || it in used } as List
+		Map<Long, List<Map<String, Object>>> subnets = subnetsByNetwork(user, networkIds)
+		Map<Long, Map> instances = instancesByServer(user, vmIds)
+
+		Map<Long, List<InfraNode>> vmsByNetwork = [:]
+		List<InfraNode> unattached = []
+		vms.each { Map vm ->
+			Long id = vm.id as Long
+			Long hostId = vm['parentServer.id'] as Long
+			Map<Long, Set<String>> byNetwork = attached[id] ?: [:]
+			// Interfaces in networks that are not shown (none, or not visible) put the VM into the extra node once
+			boolean outside = !byNetwork || byNetwork.keySet().any { !(it in networkIds) }
+			byNetwork.findAll { it.key in networkIds }.each { Long networkId, Set<String> addresses ->
+				InfraNode node = toVmNode(vm, hostId, instances[id])
+				node.hostName = hostsById[hostId].name
+				node.ipAddresses = addresses.sort()
+				vmsByNetwork.computeIfAbsent(networkId) { [] } << node
+			}
+			if (outside) {
+				InfraNode node = toVmNode(vm, hostId, instances[id])
+				node.hostName = hostsById[hostId].name
+				node.ipAddresses = (byNetwork.findAll { !(it.key in networkIds) }.values().flatten() as Set<String>).sort()
+				unattached << node
+			}
+		}
+		List<InfraNode> result = InfraNode.sortByName(networkIds.collect { Long networkId ->
+			InfraNode node = toNetworkNode(networks[networkId], subnets[networkId])
+			node.clusterId = clusterId
+			node.vms = InfraNode.sortByName(vmsByNetwork[networkId] ?: [])
+			node.vmCount = node.vms.size()
+			node
+		})
+		if (unattached) {
+			result << new InfraNode(clusterId: clusterId, vms: InfraNode.sortByName(unattached), vmCount: unattached.size())
+		}
+		return result
+	}
+
+	/**
+	 * Network id → addresses per server (all addresses of the interfaces in that network). Interfaces without network
+	 * are kept under the key {@code null}, so their VMs are not lost.
+	 */
+	private Map<Long, Map<Long, Set<String>>> interfacesByServer(User user, List<Long> serverIds) {
+		if (!serverIds) {
+			return [:]
+		}
+		DataQuery query = new DataQuery(user).withFilter('id', 'in', serverIds)
+		Map<Long, Map<Long, Set<String>>> result = [:]
+		rows(morpheus.services.computeServer, query, INTERFACE_PROPS).each { Map row ->
+			Long id = row.id as Long
+			if (!(id in serverIds) || row['interfaces.id'] == null) {
+				return
+			}
+			Set<String> addresses = result.computeIfAbsent(id) { [:] }
+				.computeIfAbsent(row['interfaces.network.id'] as Long) { [] as Set }
+			if (row['interfaces.addresses.address']) {
+				addresses << row['interfaces.addresses.address'].toString()
+			}
+		}
+		return result
+	}
+
+	/**
+	 * Networks the user may see, by id. Networks of another tenant count if they are shared publicly, as in Morpheus;
+	 * inactive networks are left out.
+	 */
+	private Map<Long, Map> visibleNetworks(User user) {
+		rows(morpheus.services.network, new DataQuery(user), NETWORK_PROPS)
+			.findAll {
+				it.active != false && (accessPolicy.canSeeTenant(user, it['owner.id'] as Long) ||
+					(it.visibility?.toString() == 'public' && user?.account?.id != null))
+			}
+			.collectEntries { [(it.id as Long): it] }
+	}
+
+	/** Ids of the networks that one of the hosts carries */
+	private Set<Long> networksOnHosts(User user, List<Long> networkIds, Set<Long> hostIds) {
+		if (!networkIds || !hostIds) {
+			return [] as Set
+		}
+		DataQuery query = new DataQuery(user).withFilter('id', 'in', networkIds)
+		rows(morpheus.services.network, query, NETWORK_LOCATION_PROPS)
+			.findAll {
+				(it.id as Long) in networkIds && it['locations.refType'] == LOCATION_SERVER &&
+					(it['locations.refId'] as Long) in hostIds
+			}
+			.collect { it.id as Long } as Set
+	}
+
+	/** Subnets (id, name, cidr) per network, sorted by name */
+	private Map<Long, List<Map<String, Object>>> subnetsByNetwork(User user, List<Long> networkIds) {
+		if (!networkIds) {
+			return [:]
+		}
+		DataQuery query = new DataQuery(user).withFilter('id', 'in', networkIds)
+		Map<Long, List<Map<String, Object>>> result = [:]
+		rows(morpheus.services.network, query, SUBNET_PROPS).each { Map row ->
+			Long id = row.id as Long
+			if (id in networkIds && row['subnets.id'] != null) {
+				Map<String, Object> subnet = [id: row['subnets.id'] as Long, name: row['subnets.name'], cidr: row['subnets.cidr']]
+				result.computeIfAbsent(id) { [] } << subnet.findAll { it.value != null }
+			}
+		}
+		result.values().each { list -> list.sort { a, b -> (a.name ?: '').toString().compareToIgnoreCase((b.name ?: '').toString()) } }
+		return result
+	}
+
 	private List<Map> servers(User user, DataQuery query) {
 		return rows(morpheus.services.computeServer, query, SERVER_PROPS)
 	}
@@ -383,6 +527,13 @@ class HvmInfraSource implements InfraSource {
 			type: datastore['datastoreType.name'] ?: datastore.type, storageSize: datastore.storageSize as Long,
 			freeSpace: datastore.freeSpace as Long, online: datastore.online as Boolean,
 			url: "/infrastructure/storage/data-stores/${datastore.id}".toString())
+	}
+
+	private static InfraNode toNetworkNode(Map network, List<Map<String, Object>> subnets) {
+		new InfraNode(id: network.id as Long, name: network.name, status: network.status?.toString(),
+			type: network['type.name'], vlanId: network.vlanId as Integer, cidr: network.cidr ?: null,
+			cidrIPv6: network.cidrIPv6 ?: null, subnets: subnets ?: null,
+			url: "/infrastructure/networks/${network.id}".toString())
 	}
 
 	/** Detail page of hosts and VMs (managed or not) */

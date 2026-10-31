@@ -9,8 +9,10 @@ import com.morpheusdata.core.synchronous.cloud.MorpheusSynchronousCloudService
 import com.morpheusdata.core.synchronous.cloud.MorpheusSynchronousDatastoreService
 import com.morpheusdata.core.synchronous.compute.MorpheusSynchronousComputeServerGroupService
 import com.morpheusdata.core.synchronous.compute.MorpheusSynchronousComputeServerService
+import com.morpheusdata.core.synchronous.network.MorpheusSynchronousNetworkService
 import com.morpheusdata.model.Account
 import com.morpheusdata.model.ComputeServer
+import com.morpheusdata.model.ComputeServerInterface
 import com.morpheusdata.model.ComputeServerGroup
 import com.morpheusdata.model.ComputeServerGroupType
 import com.morpheusdata.model.ComputeServerType
@@ -18,6 +20,11 @@ import com.morpheusdata.model.Datastore
 import com.morpheusdata.model.DatastoreType
 import com.morpheusdata.model.Instance
 import com.morpheusdata.model.MetadataTag
+import com.morpheusdata.model.NetAddress
+import com.morpheusdata.model.Network
+import com.morpheusdata.model.NetworkLocation
+import com.morpheusdata.model.NetworkSubnet
+import com.morpheusdata.model.NetworkType
 import com.morpheusdata.model.User
 import com.morpheusdata.model.Workload
 import com.morpheusdata.model.projection.ComputeServerIdentityProjection
@@ -61,8 +68,18 @@ class HvmInfraSourceSpec extends Specification {
 	/** Same refId as the HVM cluster, but referencing another kind of object */
 	Datastore otherRef = new Datastore(id: 50L, name: 'test-other', refType: 'ComputeZone', refId: 1L, owner: master)
 
+	/** Carried by host-2 of the HVM cluster, with two subnets */
+	Network netA = network(60L, 'test-net-a', master, [host2], 24, '10.0.0.0/24')
+	/** Not carried by any host of the cluster, only used by a VM */
+	Network netB = network(61L, 'test-net-b', master, [], null, null)
+	Network kubeNet = network(62L, 'test-kube-net', master, [kubeHost], null, '10.9.0.0/24')
+	Network inactiveNet = network(63L, 'test-inactive', master, [host1], null, null)
+	Network netOfB = network(64L, 'test-net-tenant-b', tenantB, [hostA], null, null)
+	Network sharedNet = network(65L, 'test-net-shared', master, [hostA], null, '10.5.0.0/24')
+
 	List everything = [hvmCluster, otherCluster, clusterA, host1, host2, kubeHost, hostA, managedVm, discoveredVm,
 					   vmA, vmB, sharedLun, localDir, kubeStore, storeA, storeB, otherRef,
+					   netA, netB, kubeNet, inactiveNet, netOfB, sharedNet,
 					   new Workload(id: 99L, server: managedVm, account: master, instance: new Instance(id: 500L, account: master)),
 					   new Workload(id: 98L, server: managedVm, account: master, instance: new Instance(id: 501L, account: master, createdBy: new User(id: 8L))),
 					   new Workload(id: 97L, server: vmA, account: tenantB, instance: new Instance(id: 600L, account: tenantB))]
@@ -75,6 +92,8 @@ class HvmInfraSourceSpec extends Specification {
 	Set<Long> maintenanceIds = []
 	/** Overrides what computeServer.find returns, e.g. a server changed after the visibility check */
 	ComputeServer loaded
+	/** Networks shared publicly (column without model property) */
+	Set<Long> publicNetworkIds = []
 	/** Deliver ids and other whole numbers as Integer, as the database layer may do */
 	boolean integerValues = false
 
@@ -85,6 +104,14 @@ class HvmInfraSourceSpec extends Specification {
 		managedVm.createdBy = new User(id: 7L)
 		managedVm.metadata = [new MetadataTag(name: 'Folder-1', value: 'Prod'), new MetadataTag(name: 'Folder-2', value: 'Web'),
 							  new MetadataTag(name: 'Folder-1', value: 'ignored')]
+		netA.subnets = [new NetworkSubnet(id: 71L, name: 'test-sub-2', cidr: '10.0.0.128/25'),
+						new NetworkSubnet(id: 70L, name: 'test-sub-1', cidr: '10.0.0.0/25')]
+		inactiveNet.active = false
+		// Two interfaces in the same network (one VM, two addresses there), one in a network no host carries
+		managedVm.interfaces = [nic(netA, '10.0.0.5', 'fe80::5'), nic(netA, '10.0.0.6'), nic(netB, '172.16.0.5'),
+								nic(inactiveNet, '10.1.0.5')]
+		discoveredVm.interfaces = [nic(null)]
+		vmA.interfaces = [nic(netOfB, '10.4.0.7'), nic(sharedNet, '10.5.0.7')]
 		returned[admin] = everything + [nestedVm]
 		returned[userA] = everything
 		returned[noAccount] = everything
@@ -106,7 +133,11 @@ class HvmInfraSourceSpec extends Specification {
 		def cloudService = Stub(MorpheusSynchronousCloudService) {
 			getDatastore() >> datastoreService
 		}
+		def networkService = Stub(MorpheusSynchronousNetworkService) {
+			listOptions(_) >> { DataQuery q -> options(q, Network) }
+		}
 		def services = Stub(MorpheusServices) {
+			getNetwork() >> networkService
 			getCloud() >> cloudService
 			getCluster() >> clusterService
 			getComputeServer() >> serverService
@@ -515,6 +546,74 @@ class HvmInfraSourceSpec extends Specification {
 		source.listAllVms(noAccount).isEmpty()
 	}
 
+	def "lists the networks of a cluster with the VMs connected to them"() {
+		when:
+		List<InfraNode> networks = source.listNetworks(admin, 1L)
+
+		then: 'carried by a host of the cluster or used by one of its VMs; inactive and foreign ones left out'
+		networks*.name == ['test-net-a', 'test-net-b', null]
+		with(networks[0]) {
+			id == 60L
+			clusterId == 1L
+			vlanId == 24
+			cidr == '10.0.0.0/24'
+			type == 'HVM Standard Network'
+			url == '/infrastructure/networks/60'
+			subnets == [[id: 70L, name: 'test-sub-1', cidr: '10.0.0.0/25'], [id: 71L, name: 'test-sub-2', cidr: '10.0.0.128/25']]
+			vmCount == 1
+			vms*.id == [30L]
+			vms[0].ipAddresses == ['10.0.0.5', '10.0.0.6', 'fe80::5']
+			vms[0].hostName == 'host-1'
+			vms[0].instanceId == 501L
+		}
+		networks[1].vms*.ipAddresses == [['172.16.0.5']]
+
+		and: 'VMs without network or with an interface in a network that is not shown, once each'
+		networks[2].id == null
+		networks[2].vms*.name == ['discovered-vm', 'test-nested', 'test-vm']
+		networks[2].vmCount == 3
+		networks[2].vms.find { it.id == 30L }.ipAddresses == ['10.1.0.5']
+	}
+
+	def "lists networks of a cluster without VMs and returns null for other clusters"() {
+		given:
+		returned[admin] = everything - [managedVm, discoveredVm]
+
+		expect:
+		source.listNetworks(admin, 1L)*.name == ['test-net-a']
+		source.listNetworks(admin, 1L)[0].vmCount == 0
+		source.listNetworks(admin, 2L) == null
+		source.listNetworks(admin, 99L) == null
+		source.listNetworks(admin, null) == null
+	}
+
+	def "lists only networks of the own tenant or shared publicly"() {
+		when:
+		List<InfraNode> networks = source.listNetworks(userA, 3L)
+
+		then:
+		networks*.name == [null]
+		networks[0].vms*.id == [41L]
+
+		when:
+		publicNetworkIds << 65L
+		networks = source.listNetworks(userA, 3L)
+
+		then:
+		networks*.name == ['test-net-shared', null]
+		networks[0].vms[0].ipAddresses == ['10.5.0.7']
+		networks[1].vms[0].ipAddresses == ['10.4.0.7']
+	}
+
+	def "needs eight queries for the networks of a cluster"() {
+		when:
+		source.listNetworks(admin, 1L)
+
+		then:
+		queries.size() == 8
+		queries.every { it.user.is(admin) }
+	}
+
 	def "needs five queries for all VMs"() {
 		when:
 		source.listAllVms(admin)
@@ -537,26 +636,49 @@ class HvmInfraSourceSpec extends Specification {
 	}
 
 	/**
-	 * Emulates listOptions with a propertyList: one map per object with the requested property paths. Paths into the
-	 * tags (metadata.*) give one row per tag like the database join, or one row with null values without tags.
+	 * Emulates listOptions with a propertyList: one map per object with the requested property paths. Paths into a
+	 * collection (metadata.*, interfaces.*, interfaces.addresses.*, locations.*, subnets.*) give one row per element like
+	 * the database join, or one row with null values for an empty collection.
 	 */
 	private List<Map> options(DataQuery q, Class type) {
 		assert q.propertyList && q.max
 		query(q, type).collectMany { item ->
-			List tagRows = q.propertyList.any { it.startsWith('metadata.') } ? (item.metadata ?: [null]) : [null]
-			tagRows.collect { tag ->
-				q.propertyList.collectEntries { String path ->
-					def value = path.startsWith('metadata.') ? tag?."${path.substring(9)}" : resolve(item, path)
-					[(path): value]
-				} + [value: item.id]
-			}
+			joinRows(item, q.propertyList).collect { it + [value: item.id] }
 		}.collect { Map row -> integerValues ? row.collectEntries { k, v -> [(k): v instanceof Long ? v as Integer : v] } : row }
+	}
+
+	private List<Map> joinRows(Object item, List<String> paths) {
+		List<Map> rows = [[:]]
+		paths.groupBy { it.tokenize('.')[0] }.each { String head, List<String> group ->
+			def value = resolve(item, head)
+			List<String> rest = group.findAll { it != head }*.substring(head.length() + 1)
+			List<Map> part
+			if (value instanceof Collection) {
+				part = ((value ?: [null]) as List).collectMany { joinRows(it, rest) }
+			} else if (rest) {
+				part = joinRows(value, rest)
+			} else {
+				part = [[:]]
+			}
+			part = part.collect { Map sub ->
+				Map row = sub.collectEntries { k, v -> [("${head}.${k}".toString()): v] }
+				if (head in group) {
+					row[head] = value instanceof Collection ? null : value
+				}
+				row
+			}
+			rows = rows.collectMany { Map row -> part.collect { row + it } }
+		}
+		rows
 	}
 
 	/** Database columns the plugin model does not have (e.g. maintenanceMode); missing properties resolve to null */
 	private Object resolve(Object item, String path) {
 		if (path == 'maintenanceMode') {
 			return item instanceof ComputeServer ? item.id in maintenanceIds : null
+		}
+		if (path == 'visibility') {
+			return item instanceof Network ? (item.id in publicNetworkIds ? 'public' : 'private') : null
 		}
 		path.tokenize('.').inject(item) { obj, prop -> obj != null && obj.hasProperty(prop) ? obj."$prop" : null }
 	}
@@ -589,6 +711,19 @@ class HvmInfraSourceSpec extends Specification {
 									  DatastoreType type, Boolean online = true) {
 		new Datastore(id: id, name: name, refType: 'ComputeServerGroup', refId: cluster.id, owner: owner,
 			datastoreType: type, storageSize: 1000L, freeSpace: 400L, online: online, status: 'provisioned')
+	}
+
+	private static Network network(Long id, String name, Account owner, List<ComputeServer> hosts, Integer vlanId,
+								   String cidr) {
+		new Network(id: id, name: name, owner: owner, active: true, status: 'ok', vlanId: vlanId, cidr: cidr,
+			type: new NetworkType(name: 'HVM Standard Network'),
+			locations: hosts.collect { new NetworkLocation(refType: 'ComputeServer', refId: it.id) })
+	}
+
+	private long nicIds = 900L
+
+	private ComputeServerInterface nic(Network network, String... addresses) {
+		new ComputeServerInterface(id: nicIds++, network: network, addresses: addresses.collect { new NetAddress(address: it) })
 	}
 
 	private static ComputeServer host(Long id, String name, ComputeServerGroup cluster, Account account) {

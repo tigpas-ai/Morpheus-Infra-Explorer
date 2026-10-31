@@ -46,10 +46,24 @@ class AccessPolicySpec extends Specification {
 		['infrastructure-storage': 'full']                                     || false
 	}
 
+	def "network view needs read on clusters, compute and networks"() {
+		expect:
+		policy.canViewNetworks(user(permissions)) == expected
+
+		where:
+		permissions                                                                                         || expected
+		['infrastructure-cluster': 'read', 'admin-servers': 'read', 'infrastructure-networks': 'read']      || true
+		['infrastructure-cluster': 'read', 'admin-servers': 'full', 'infrastructure-networks': 'full']      || true
+		['infrastructure-cluster': 'read', 'admin-servers': 'read', 'infrastructure-networks': 'none']      || false
+		['infrastructure-cluster': 'read', 'admin-servers': 'none', 'infrastructure-networks': 'full']      || false
+		['admin-servers': 'full', 'infrastructure-networks': 'full']                                         || false
+	}
+
 	def "no user, no access"() {
 		expect:
 		!policy.canViewClusters(null)
 		!policy.canViewServers(null)
+		!policy.canViewNetworks(null)
 	}
 
 	def "tenant check: master tenant sees all, other tenants only their own, missing data means no access"() {

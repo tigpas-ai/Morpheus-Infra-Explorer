@@ -20,6 +20,9 @@ class InfraExplorerControllerSpec extends Specification {
 	@Shared User storage = new User(id: 4L, permissions: ['infrastructure-cluster': 'read', 'infrastructure-storage': 'read'])
 	@Shared User readOnly = new User(id: 5L, permissions: ['infrastructure-cluster': 'read', 'admin-servers': 'read'])
 	@Shared User nobody = new User(id: 3L, permissions: ['infrastructure-cluster': 'none'])
+	@Shared User networker = new User(id: 8L, permissions: ['infrastructure-cluster': 'read', 'admin-servers': 'read',
+														   'infrastructure-networks': 'read'])
+	@Shared User networksOnly = new User(id: 10L, permissions: ['infrastructure-cluster': 'read', 'infrastructure-networks': 'full'])
 
 	InfraSource source = Mock()
 	MorpheusContext morpheus = Stub {
@@ -30,9 +33,9 @@ class InfraExplorerControllerSpec extends Specification {
 	def "registers the tree routes with the cluster permission"() {
 		expect:
 		controller.routes*.url == ['/infra-explorer/clusters', '/infra-explorer/hosts', '/infra-explorer/vms',
-								   '/infra-explorer/datastores', '/infra-explorer/vm-folders', '/infra-explorer/vm-folder',
+								   '/infra-explorer/datastores', '/infra-explorer/networks', '/infra-explorer/vm-folders', '/infra-explorer/vm-folder',
 								   '/infra-explorer/folder-rename', '/infra-explorer/level-rename']
-		controller.routes*.method == ['clusters', 'hosts', 'vms', 'datastores', 'vmFolders', 'vmFolder', 'folderRename', 'levelRename']
+		controller.routes*.method == ['clusters', 'hosts', 'vms', 'datastores', 'networks', 'vmFolders', 'vmFolder', 'folderRename', 'levelRename']
 		controller.routes.every { it.permissions*.code == ['infrastructure-cluster'] }
 	}
 
@@ -75,6 +78,36 @@ class InfraExplorerControllerSpec extends Specification {
 		'datastores' | clustersOnly | [clusterId: '4']
 		'hosts'    | storage      | [clusterId: '4']
 		'vmFolders' | clustersOnly | [:]
+		'networks' | readOnly     | [clusterId: '4']
+		'networks' | networksOnly | [clusterId: '4']
+	}
+
+	def "returns the networks of a cluster with their VMs and the VMs outside any network separately"() {
+		given:
+		source.listNetworks(networker, 4L) >> [
+			new InfraNode(id: 60L, name: 'test-net', vlanId: 24, cidr: '10.0.0.0/24', clusterId: 4L, vmCount: 1,
+				vms: [new InfraNode(id: 16L, name: 'vm', hostId: 13L, ipAddresses: ['10.0.0.5'])]),
+			new InfraNode(clusterId: 4L, vmCount: 1, vms: [new InfraNode(id: 17L, name: 'other', hostId: 13L, ipAddresses: [])])
+		]
+
+		when:
+		JsonResponse response = controller.networks(model(networker, [clusterId: '4']))
+
+		then:
+		response.status == 200
+		response.data == [clusterId: 4L,
+						  networks: [[id: 60L, name: 'test-net', vlanId: 24, cidr: '10.0.0.0/24', clusterId: 4L, vmCount: 1,
+									  vms: [[id: 16L, name: 'vm', hostId: 13L, ipAddresses: ['10.0.0.5'], actions: []]]]],
+						  withoutNetwork: [[id: 17L, name: 'other', hostId: 13L, ipAddresses: [], actions: []]]]
+	}
+
+	def "answers 404 for networks of an unknown cluster and 400 without cluster id"() {
+		given:
+		source.listNetworks(networker, 5L) >> null
+
+		expect:
+		controller.networks(model(networker, [clusterId: '5'])).status == 404
+		controller.networks(model(networker, [:])).status == 400
 	}
 
 	def "returns all VMs with folder path from the configured tags, without the raw tags"() {

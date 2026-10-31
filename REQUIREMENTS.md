@@ -19,6 +19,7 @@ VMs in folders, storage per cluster. It complements the Morpheus UI and does not
 | **Clusters** | All clusters → their hosts → the VMs of each host |
 | **Instances** | VMs in a folder hierarchy: the first level is the tenant, below it the folders (see Folders); VMs without a folder sit directly below their tenant |
 | **Storage** | Per cluster the related datastores (name, type, capacity/usage as far as the API provides them) |
+| **Networks** | Per cluster its networks with their IP networks (CIDR IPv4/IPv6, subnets), VLAN and number of VMs → the VMs connected to them with their addresses there; a VM with several interfaces appears below each of its networks (requested 2026-10-31, implemented in 0.18.0) |
 
 Each VM shows at least: name, power state, host. The state should be refreshable without reloading the whole
 Morpheus page (reloading the node is enough).
@@ -187,6 +188,23 @@ a 9.1 test appliance. "Verified" = checked on the test appliance, otherwise take
 
 The controller uses the Morpheus services instead of the REST API; see open point 3 for how datastores are
 assigned to the cluster.
+
+### 5a. Networks (verified, 0.18.0)
+- **Network** = `Network` (service `morpheus.services.network`, page `/infrastructure/networks/<id>`, role permission
+  `infrastructure-networks` "Networks"). HVM networks reference the cloud (`refType ComputeZone`); the cluster is not
+  stored on the network, and `/api/clusters/:id/networks` → 400 for `mvm-cluster`. The hosts carrying a network are its
+  `locations` (`refType ComputeServer`, `refId` = host id, one per host). → A network belongs to a cluster if a host of the
+  cluster carries it or a VM of the cluster is connected to it.
+- **Interfaces of a VM:** `listOptions` on `computeServer` with `interfaces.id`, `interfaces.network.id`,
+  `interfaces.addresses.address` returns one row per address of each interface (left join). `interfaces.ipAddress` and
+  `interfaces.ipv6Address` are not columns (model getters derived from `addresses`) and empty the **whole** query;
+  `interfaces.network` alone returns a Hibernate proxy that cannot be read outside the session.
+- Network columns readable via `listOptions`: `name`, `status`, `active`, `vlanId`, `cidr`, `cidrIPv6`, `type.name`,
+  `owner.id`, `visibility` (`private`/`public`), `locations.refType`/`refId`, `subnets.id`/`name`/`cidr` (one row per
+  subnet; the test appliance has no subnets, so the values were only seen as `null`).
+- Tenant: networks of the own tenant, plus networks of other tenants with `visibility = public` (shared, as in Morpheus).
+- The plugin services were checked with a test build on the appliance; the routes of the Morpheus UI behind the network
+  page were not opened in a browser.
 
 ### 6. Plugin settings
 - Defined via `Plugin.setSettings(List<OptionType>)`, read with `morpheus.getSettings(plugin)` → JSON string.
