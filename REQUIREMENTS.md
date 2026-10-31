@@ -54,6 +54,15 @@ permissions). The entry survives logging out; renaming the user discards it.
 It therefore applies across tabs and sessions in this browser, but not on other devices. The plugin API offers no
 per-user storage on the server. The window limits the stored size so the panel never extends past the edge.
 
+Path state of shared storage (requested 2026-10-31, implemented in 0.19.0): in the storage view each shared datastore shows
+per node whether all storage paths are up (✅, muted), some are down (⚠️) or none is up (❌), e.g. `Nodes: 1 ✅, 2 ⚠️`.
+Morpheus itself keeps no path state (verified: the host inventory lists one path per LUN although the hosts have two,
+all active; the datastore only has one status per host). Collecting it means running a command on every host, so it
+is a separate plugin with its own contract ("one plugin, one task"): Storage Path Monitor, code `storage-path-monitor`,
+route `GET /plugin/storage-path-monitor/paths?clusterId=<id>` (UI session; counters per datastore and state per host).
+The overlay reads it in the background per expanded cluster (cached like the CPU/RAM values); a non-JSON answer
+(plugin not installed) or 403 hides the line and is asked again after 5 minutes. Unknown states count as unknown (❔).
+
 Languages (requested 2026-10-31, implemented in 0.18.0): English by default, German as the first further language, more
 to follow. The overlay takes the language from the `lang` attribute of the Morpheus page (verified: `en-US`, with
 `Accept-Language: de` → `de-DE`); Morpheus sets it from the user locale, the appliance default locale or the browser

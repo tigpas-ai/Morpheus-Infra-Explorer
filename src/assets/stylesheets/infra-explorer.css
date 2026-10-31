@@ -507,6 +507,16 @@
 	flex: none;
 }
 
+/* Path states of a shared datastore: muted while all nodes are OK, coloured otherwise */
+.ie-paths-degraded,
+.ie-paths-unknown {
+	color: #d4a017;
+}
+
+.ie-paths-down {
+	color: var(--ie-danger);
+}
+
 .ie-info-value {
 	color: var(--ie-fg);
 	overflow-wrap: anywhere;

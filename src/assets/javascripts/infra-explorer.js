@@ -1455,7 +1455,12 @@
 		},
 		storageCluster: {
 			path: function (node) { return '/datastores?clusterId=' + encodeURIComponent(node.id); },
-			items: function (data) { return data.datastores; },
+			// Copies with the cluster, for the path states; the cached answer stays unchanged
+			items: function (data) {
+				return (data.datastores || []).map(function (datastore) {
+					return Object.assign({}, datastore, { clusterId: data.clusterId });
+				});
+			},
 			childKind: 'datastore',
 			empty: 'empty.datastores'
 		},
@@ -1728,6 +1733,9 @@
 			text.appendChild(el('span', 'ie-sub', node.type));
 		}
 		row.appendChild(text);
+		if (node.clusterId != null) {
+			attachPaths(text, node);
+		}
 		if (node.online === false) {
 			row.appendChild(el('span', 'ie-tag ie-warn', t('tag.offline')));
 		} else if (node.status === 'inactive') {
@@ -1739,6 +1747,112 @@
 		}
 		item.appendChild(row);
 		return item;
+	}
+
+	// --- Storage paths per node -----------------------------------------------------------------------------------
+	// Optional: the separate Storage Path Monitor plugin (code storage-path-monitor) collects the multipath state of
+	// shared datastores on every host. Its route is read in the background; without that plugin, or without
+	// permission, the datastores simply show no path state.
+
+	var PATHS_API = '/plugin/storage-path-monitor/paths';
+	var PATH_STATES = ['ok', 'degraded', 'down', 'unknown'];
+	var PATH_SYMBOLS = { ok: '✅', degraded: '⚠️', down: '❌', unknown: '❔' };
+	// Not installed or not allowed: asked again only after this time
+	var PATHS_RETRY_MS = 5 * 60 * 1000;
+	var pathStatsCache = {};
+	var pathsUnavailableUntil = 0;
+
+	function clusterPathStats(clusterId) {
+		var entry = pathStatsCache[clusterId];
+		if (entry && Date.now() - entry.time < FRESH_MS) {
+			return entry.promise;
+		}
+		if (Date.now() < pathsUnavailableUntil) {
+			return Promise.reject(new Error('path monitor unavailable'));
+		}
+		var promise = schedule(function () {
+			return fetch(PATHS_API + '?clusterId=' + encodeURIComponent(clusterId), {
+				credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+			}).then(function (response) {
+				var contentType = response.headers.get('Content-Type') || '';
+				// 404 with HTML: plugin not installed; 403: no storage permission – both stay so for a while
+				if (contentType.indexOf('json') === -1 || response.status === 403) {
+					pathsUnavailableUntil = Date.now() + PATHS_RETRY_MS;
+					throw new Error('path monitor unavailable');
+				}
+				return readJson(response).then(function (json) {
+					if (!response.ok || !json || !Array.isArray(json.datastores)) {
+						throw new Error('HTTP ' + response.status);
+					}
+					var byId = {};
+					json.datastores.forEach(function (datastore) { byId[datastore.id] = datastore; });
+					return byId;
+				});
+			});
+		}, true);
+		pathStatsCache[clusterId] = { time: Date.now(), promise: promise };
+		promise.catch(function () {
+			if (pathStatsCache[clusterId] && pathStatsCache[clusterId].promise === promise) {
+				delete pathStatsCache[clusterId];
+			}
+		});
+		return promise;
+	}
+
+	// Unknown states of a newer monitor count as unknown
+	function pathCounts(datastore) {
+		var counts = { ok: 0, degraded: 0, down: 0, unknown: 0 };
+		var given = datastore.counts || {};
+		Object.keys(given).forEach(function (state) {
+			var key = PATH_STATES.indexOf(state) !== -1 ? state : 'unknown';
+			counts[key] += typeof given[state] === 'number' ? given[state] : 0;
+		});
+		return counts;
+	}
+
+	// "Nodes: 1 ✅, 2 ⚠️": OK always, the other states when they occur; host details in the tooltip
+	function pathLine(datastore) {
+		var counts = pathCounts(datastore);
+		var total = counts.ok + counts.degraded + counts.down + counts.unknown;
+		if (!total) {
+			return null;
+		}
+		var shown = PATH_STATES.filter(function (state) { return state === 'ok' || counts[state] > 0; });
+		var worst = ['down', 'degraded', 'unknown'].filter(function (state) { return counts[state] > 0; })[0] || 'ok';
+		var line = el('span', 'ie-sub ie-paths ie-paths-' + worst);
+		line.appendChild(document.createTextNode(t('paths.label') + ' '));
+		shown.forEach(function (state, index) {
+			var part = el('span', 'ie-paths-part', formatNumber(counts[state]) + ' ' + PATH_SYMBOLS[state]);
+			part.setAttribute('aria-hidden', 'true');
+			line.appendChild(document.createTextNode(index ? ', ' : ''));
+			line.appendChild(part);
+		});
+		var summary = shown.map(function (state) {
+			return tn('paths.count.' + state, counts[state]);
+		}).join(', ');
+		line.appendChild(el('span', 'ie-sr', summary));
+		var details = (datastore.hosts || []).map(function (host) {
+			var name = host.name || t('paths.host', { id: host.hostId });
+			var state = PATH_STATES.indexOf(host.state) !== -1 ? host.state : 'unknown';
+			var text = PATH_SYMBOLS[state] + ' ' + name;
+			if (typeof host.activePaths === 'number' && typeof host.totalPaths === 'number') {
+				text += ': ' + t('paths.active', { active: formatNumber(host.activePaths), total: formatNumber(host.totalPaths) });
+			}
+			return host.error ? text + ' (' + host.error + ')' : text;
+		});
+		line.title = [t('paths.title'), summary].concat(details).join('\n');
+		return line;
+	}
+
+	// Placeholder below the type, filled when the path states arrive; without them nothing is shown
+	function attachPaths(stack, node) {
+		clusterPathStats(node.clusterId).then(function (byId) {
+			var datastore = byId[node.id];
+			var line = datastore ? pathLine(datastore) : null;
+			if (line) {
+				stack.appendChild(line);
+			}
+		}, function () { /* no monitor, no permission or not reachable: no path state */ });
 	}
 
 	// --- Networks ----------------------------------------------------------------------------------------------

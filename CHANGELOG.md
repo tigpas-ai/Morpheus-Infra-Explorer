@@ -3,6 +3,11 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.19.0 – 2026-10-31
+- Storage view: path state per node for shared datastores ("Nodes: 2 ✅, 1 ⚠️"; muted while all nodes are OK, details
+  per host in the tooltip). Optional: read in the background from the separate Storage Path Monitor plugin
+  (`storage-path-monitor`); without it, or without its permissions, nothing is shown.
+
 ## 0.18.0 – 2026-10-31
 - New view **Networks**: per cluster its networks with VLAN, IP networks (CIDR IPv4/IPv6, subnets) and number of VMs,
   below them the VMs with their addresses in that network; VMs with several interfaces appear below each network,
