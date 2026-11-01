@@ -507,23 +507,44 @@
 	flex: none;
 }
 
-/* The path line links to the detail view of the path monitor */
-a.ie-paths {
+/* The path line links to the detail view of the path monitor. The id raises the specificity above the link colors
+   of the Morpheus stylesheets, whose dark hover color is unreadable on the dark overlay. */
+#ie-root a.ie-paths,
+#ie-root a.ie-paths:link,
+#ie-root a.ie-paths:visited,
+#ie-root a.ie-paths:hover,
+#ie-root a.ie-paths:focus,
+#ie-root a.ie-paths:active {
+	color: var(--ie-muted);
 	text-decoration: none;
+	outline: none;
 }
 
-a.ie-paths:hover,
-a.ie-paths:focus-visible {
+#ie-root a.ie-paths:hover,
+#ie-root a.ie-paths:focus-visible {
 	text-decoration: underline;
 }
 
-/* Path states of a shared datastore: muted while all nodes are OK, coloured otherwise */
-.ie-paths-degraded,
-.ie-paths-unknown {
+#ie-root a.ie-paths-ok:hover,
+#ie-root a.ie-paths-ok:focus-visible {
+	color: var(--ie-fg);
+}
+
+#ie-root a.ie-paths:focus-visible {
+	outline: 2px solid var(--ie-accent);
+	outline-offset: 1px;
+}
+
+/* Path states of a shared datastore: muted while all nodes are OK, coloured otherwise (also on hover) */
+#ie-root a.ie-paths-degraded,
+#ie-root a.ie-paths-degraded:is(:link, :visited, :hover, :focus, :active),
+#ie-root a.ie-paths-unknown,
+#ie-root a.ie-paths-unknown:is(:link, :visited, :hover, :focus, :active) {
 	color: #d4a017;
 }
 
-.ie-paths-down {
+#ie-root a.ie-paths-down,
+#ie-root a.ie-paths-down:is(:link, :visited, :hover, :focus, :active) {
 	color: var(--ie-danger);
 }
 

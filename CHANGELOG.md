@@ -3,6 +3,10 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.20.2 – 2026-11-02
+- Storage view: the node state link keeps a readable color on hover and focus (the link colors of the Morpheus
+  stylesheets turned it dark on the dark overlay); OK states brighten to white, warning states keep their color.
+
 ## 0.20.1 – 2026-11-01
 - Plugin metadata: website, source code and issue tracker point to the repository
   (https://github.com/tigpas-ai/morpheus-infra-explorer), shown in the plugin list of Morpheus.
