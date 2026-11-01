@@ -13,7 +13,7 @@ export MORPHEUS_URL=https://morpheus.example.com
 export MORPHEUS_TOKEN=…                 # API token, see below
 export MORPHEUS_ADMIN_USER=admin MORPHEUS_ADMIN_PASSWORD=…
 export MORPHEUS_CACERT=/path/to/ca.pem  # only for a self-signed certificate
-export LAB_TEST_PREFIX=it-test-
+export TEST_PREFIX=it-test-
 ./gradlew integrationTest
 ```
 
@@ -29,7 +29,7 @@ before and after the test (`[integration test] …`).
 | `MORPHEUS_URL` | yes | Base URL of the appliance |
 | `MORPHEUS_TOKEN` | yes | API token of an administrator: manage plugins (`admin-plugins`), users and roles |
 | `MORPHEUS_ADMIN_USER`, `MORPHEUS_ADMIN_PASSWORD` | yes | UI login of an administrator (plugin routes only accept a UI session) |
-| `LAB_TEST_PREFIX` | yes | Name prefix of all test objects, e.g. `it-test-` (letters, digits, `.`, `_`, `-`) |
+| `TEST_PREFIX` | yes | Name prefix of all test objects, e.g. `it-test-` (letters, digits, `.`, `_`, `-`); `LAB_TEST_PREFIX` is accepted as a fallback |
 | `MORPHEUS_CACERT` | no | PEM file with the CA certificate of the appliance |
 | `MORPHEUS_INSECURE` | no | `1` = do not check the certificate (emergency only) |
 | `INFRA_EXPLORER_RESTORE_JAR` | no | Jar of the installed version, or a directory with `infra-explorer-<version>-all.jar` (see below) |
@@ -86,4 +86,4 @@ The expected state is the line `state before the test: …` at the start of the 
 well. Disable the plugin
 (`PUT /api/plugins/<id>` with `{"plugin":{"enabled":false}}`) or upload the previous jar under
 *Administration → Integrations → Plugins*, then set its settings and enabled state as shown. Remove leftover test
-objects: users and roles whose names start with `LAB_TEST_PREFIX` followed by `ie-`.
+objects: users and roles whose names start with `TEST_PREFIX` followed by `ie-`.

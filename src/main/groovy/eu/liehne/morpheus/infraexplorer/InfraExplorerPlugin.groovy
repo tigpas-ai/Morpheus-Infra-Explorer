@@ -10,6 +10,7 @@ class InfraExplorerPlugin extends Plugin {
 	static final String AUTHOR = 'Pascal Liehne'
 	static final String LICENSE = 'MIT'
 	static final String DESCRIPTION = 'Hierarchical infrastructure navigation as an overlay: clusters, hosts, VMs, VM folders, networks and storage'
+	static final String REPOSITORY_URL = 'https://github.com/tigpas-ai/morpheus-infra-explorer'
 
     @Override
     String getCode() {
@@ -21,6 +22,9 @@ class InfraExplorerPlugin extends Plugin {
         this.setName("Infra Explorer")
 		this.setAuthor(AUTHOR)
 		this.setDescription(DESCRIPTION)
+		this.setWebsiteUrl(REPOSITORY_URL)
+		this.setSourceCodeLocationUrl(REPOSITORY_URL)
+		this.setIssueTrackerUrl(REPOSITORY_URL + '/issues')
 		// Own renderer: without it, Morpheus 9.1 adds the plugin's templates to the shared renderer when controllers
 		// are registered, and that fails (UnsupportedOperationException in DynamicTemplateLoader).
 		this.setRenderer(new HandlebarsRenderer('renderer', this.classLoader))

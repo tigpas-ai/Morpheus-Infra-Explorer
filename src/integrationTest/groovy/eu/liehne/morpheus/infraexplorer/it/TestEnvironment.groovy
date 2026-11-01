@@ -27,7 +27,7 @@ class TestEnvironment {
 		password = env.MORPHEUS_ADMIN_PASSWORD
 		caCert = env.MORPHEUS_CACERT ?: null
 		insecure = env.MORPHEUS_INSECURE == '1'
-		prefix = env.LAB_TEST_PREFIX?.trim()
+		prefix = (env.TEST_PREFIX ?: env.LAB_TEST_PREFIX)?.trim()
 		restoreJar = env.INFRA_EXPLORER_RESTORE_JAR ?: null
 		timeoutSeconds = (env.INFRA_EXPLORER_TEST_TIMEOUT ?: '300') as int
 		jar = props['infraExplorer.jar'] ? new File(props['infraExplorer.jar']) : null
@@ -55,9 +55,9 @@ class TestEnvironment {
 			problems << 'MORPHEUS_ADMIN_USER and MORPHEUS_ADMIN_PASSWORD are not set (UI login of an administrator)'
 		}
 		if (!prefix) {
-			problems << 'LAB_TEST_PREFIX is not set (name prefix for test objects, e.g. it-test-)'
+			problems << 'TEST_PREFIX is not set (name prefix for test objects, e.g. it-test-)'
 		} else if (!(prefix ==~ /[A-Za-z0-9][A-Za-z0-9._-]{1,30}/)) {
-			problems << 'LAB_TEST_PREFIX may only contain letters, digits, ".", "_" and "-" (2-31 characters)'
+			problems << 'TEST_PREFIX may only contain letters, digits, ".", "_" and "-" (2-31 characters)'
 		}
 		if (caCert && !new File(caCert).file) {
 			problems << "MORPHEUS_CACERT does not point to a file: $caCert"

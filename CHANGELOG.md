@@ -3,15 +3,17 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
-## Unreleased
+## 0.20.1 – 2026-11-01
+- Plugin metadata: website, source code and issue tracker point to the repository
+  (https://github.com/tigpas-ai/morpheus-infra-explorer), shown in the plugin list of Morpheus.
 - Integration test `./gradlew integrationTest` against a Morpheus appliance: installs the built jar, checks overlay,
   assets, data routes, settings, error handling and permissions (with a temporary test user and role), optionally the
   Storage Path Monitor path state, and restores the previous state afterwards – previous version with its settings
   and enabled state, or no plugin. Stops before any change if that state cannot be restored. Connection data only
-  from environment variables; see `docs/integration-test.md`.
+  from environment variables (test object prefix `TEST_PREFIX`); see `docs/integration-test.md`.
 - `scripts/build-release.sh` builds the jar of a released version from its tag `v<version>`; releases 0.17.0–0.20.0
   are tagged.
-- No change to the plugin itself.
+- Repository: `SECURITY.md`, `.gitattributes`, CI workflow (unit tests and build), README restructured.
 
 ## 0.20.0 – 2026-10-31
 - Storage view: the node state line ("Nodes: 2 ✅, 1 ⚠️") is a link to the detail view of the Storage Path Monitor
