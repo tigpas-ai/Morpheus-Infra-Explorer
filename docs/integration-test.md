@@ -61,7 +61,8 @@ state – or that it is not installed. Afterwards, also when a step fails:
   set back if they differ. Morpheus accepts an older version by upload (downgrade) and keeps plugin ID, settings and
   enabled state across uploads.
 - **Plugin was not installed:** the plugin is removed (`DELETE /api/plugins/<id>`). This path is covered by the
-  offline tests but has not yet been run against an appliance.
+  offline tests and was run against an appliance: the plugin was gone afterwards and no jar was left in the plugin
+  folder. A later install gets a new plugin ID, and its settings start empty.
 
 An upload counts as installed when the plugin shows the version of the jar, a final status and a changed
 `lastUpdated` – so an upload of the same version number is not mistaken for the one installed before. Settings are

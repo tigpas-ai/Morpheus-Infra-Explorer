@@ -244,7 +244,7 @@ assigned to the cluster.
   only the uploaded jar remains in the plugin directory of the manager. `lastUpdated` of the plugin changes with every
   upload (also of the same version) and every `PUT`. `PUT /api/plugins/<id>` with `config` replaces the whole config:
   unknown keys are dropped, `{}` leaves the defined settings as `null` (verified). `DELETE /api/plugins/<id>` removes a plugin
-  (used by the integration test when the plugin was not installed before; not yet run against an appliance).
+  (used by the integration test when the plugin was not installed before; verified against an appliance: the test removed the plugin again, no jar was left in the plugin folder; a later upload creates a new plugin ID).
 - Route permissions: a user without the permission of a route gets an answer from Morpheus itself (404 JSON
   "Unable to find page") before the plugin is called; with `infrastructure-cluster` `read` only, `clusters` answers 200
   without actions and `hosts`, `datastores`, `networks`, `vm-folders` answer 403 from the plugin (verified, 2026-11-01).
