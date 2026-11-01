@@ -36,7 +36,15 @@ Any JDK 17 distribution works, for example Eclipse Temurin 17 from https://adopt
 ```bash
 ./gradlew test        # unit tests
 ./gradlew shadowJar   # builds build/libs/infra-explorer-<version>-all.jar
+./gradlew integrationTest   # installs and checks the plugin on a Morpheus appliance, then restores the previous state
 ```
+
+The integration test needs the connection data of a test appliance in environment variables and puts back the
+previously installed version with its settings (or removes the plugin if it was not installed). Details:
+[`docs/integration-test.md`](docs/integration-test.md).
+
+Releases are tagged `v<version>`; `scripts/build-release.sh <version>` builds the jar of a released version into
+`build/releases/`.
 
 ## Install
 Upload the jar in Morpheus under *Administration → Integrations → Plugins → Upload File*, or via the API:
@@ -64,10 +72,12 @@ the instances view of the overlay.
 | `CONTRACT.md` | **External interfaces** (endpoints, options, data formats) for API clients and scripts |
 | `CHANGELOG.md` | Changes per version |
 | `src/` | Plugin code (Groovy, Morpheus plugin API), overlay script and styles, tests |
+| `src/integrationTest/` | Integration test against a Morpheus appliance ([`docs/integration-test.md`](docs/integration-test.md)) |
+| `scripts/` | `build-release.sh`: builds the jar of a released version from its git tag |
 
 ## Development
 1. Make the change and run `./gradlew test`.
-2. Build with `./gradlew shadowJar` and upload the jar to a test appliance.
+2. Build with `./gradlew shadowJar` and upload the jar to a test appliance, or run `./gradlew integrationTest`.
 3. Check the result in the UI and/or via the API.
 4. Changed an endpoint, option or data format? → update `CONTRACT.md` in the same commit.
 

@@ -71,6 +71,11 @@ sourceSets {
 		compileClasspath += configurations.provided
 		runtimeClasspath += configurations.provided
 	}
+	// Integration test against a real Morpheus appliance (see docs/integration-test.md); not part of `check`
+	integrationTest {
+		compileClasspath += sourceSets.test.compileClasspath
+		runtimeClasspath += sourceSets.test.runtimeClasspath
+	}
 }
 
 //Set plugin metadata information here that gets written into the jar
@@ -109,3 +114,27 @@ test {
 	}
 }
 tasks.assemble.dependsOn tasks.shadowJar
+
+// Uploads the built jar to the appliance from MORPHEUS_URL, checks it and restores the previous state.
+// Only one run per appliance at a time. Offline part only: ./gradlew integrationTest --tests '*PluginBaselineSpec'
+tasks.register('integrationTest', Test) {
+	description = 'Tests the built plugin on a Morpheus appliance and restores the previous plugin state.'
+	group = 'verification'
+	testClassesDirs = sourceSets.integrationTest.output.classesDirs
+	classpath = sourceSets.integrationTest.runtimeClasspath
+	dependsOn tasks.shadowJar
+	inputs.file(tasks.shadowJar.archiveFile)
+	outputs.upToDateWhen { false }
+	useJUnitPlatform()
+	systemProperty 'infraExplorer.jar', tasks.shadowJar.archiveFile.get().asFile.absolutePath
+	systemProperty 'infraExplorer.projectDir', projectDir.absolutePath
+	if (System.getenv('MORPHEUS_INSECURE') == '1') {
+		// java.net.http checks the host name even with a trust-all trust manager
+		systemProperty 'jdk.internal.httpclient.disableHostnameVerification', 'true'
+	}
+	testLogging {
+		events 'passed', 'skipped', 'failed'
+		exceptionFormat = 'full'
+		showStandardStreams = true
+	}
+}

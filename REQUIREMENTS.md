@@ -239,6 +239,16 @@ assigned to the cluster.
   `POST /api/plugins/upload` as multipart with the field `file` (API documentation 9.1.0, `uploadPlugin`). Installation
   runs asynchronously (`installing` → `loaded` or `error`) → after the upload, query `GET /api/plugins` until the
   status is final.
+- Verified on 9.1 (2026-11-01): an upload replaces any installed version, **including an older one** (downgrade
+  0.20.0 → 0.19.1 accepted, `loaded` within seconds). Plugin ID, settings (`config`) and the enabled state are kept;
+  only the uploaded jar remains in the plugin directory of the manager. `lastUpdated` of the plugin changes with every
+  upload (also of the same version) and every `PUT`. `PUT /api/plugins/<id>` with `config` replaces the whole config:
+  unknown keys are dropped, `{}` leaves the defined settings as `null` (verified). `DELETE /api/plugins/<id>` removes a plugin
+  (used by the integration test when the plugin was not installed before; not yet run against an appliance).
+- Route permissions: a user without the permission of a route gets an answer from Morpheus itself (404 JSON
+  "Unable to find page") before the plugin is called; with `infrastructure-cluster` `read` only, `clusters` answers 200
+  without actions and `hosts`, `datastores`, `networks`, `vm-folders` answer 403 from the plugin (verified, 2026-11-01).
+- Integration test against an appliance with full restore of the previous state: `docs/integration-test.md`.
 
 ### Open points
 1. ~~Direct URLs for instance details page, console and reconfigure~~ – clarified (verified), see section 5.
