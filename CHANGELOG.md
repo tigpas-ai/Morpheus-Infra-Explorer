@@ -5,7 +5,7 @@ All notable changes to this plugin. The interface (endpoints, options, data form
 
 ## Unreleased
 - Storage view: the host tooltip of the path state names the reason when a host is down despite active paths
-  ("not mounted", "withdrawn") or its mount check failed. Cluster-level `orphanMounts` of the Storage Path Monitor
+  ("not mounted", "withdrawn", "pool inactive") or its mount check failed. Cluster-level `orphanMounts` of the Storage Path Monitor
   are not shown in the overview (they belong to no datastore).
 
 ## 0.20.2 – 2026-11-02

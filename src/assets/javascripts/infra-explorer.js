@@ -1857,6 +1857,9 @@
 			if (host.withdrawn === true) {
 				reasons.push(t('paths.withdrawn'));
 			}
+			if (host.poolActive === false) {
+				reasons.push(t('paths.poolInactive'));
+			}
 			if (host.error) {
 				reasons.push(host.error);
 			}
