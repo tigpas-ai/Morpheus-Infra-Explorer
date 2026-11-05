@@ -3,6 +3,11 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## Unreleased
+- Storage view: the host tooltip of the path state names the reason when a host is down despite active paths
+  ("not mounted", "withdrawn") or its mount check failed. Cluster-level `orphanMounts` of the Storage Path Monitor
+  are not shown in the overview (they belong to no datastore).
+
 ## 0.20.2 – 2026-11-02
 - Storage view: the node state link keeps a readable color on hover and focus (the link colors of the Morpheus
   stylesheets turned it dark on the dark overlay); OK states brighten to white, warning states keep their color.

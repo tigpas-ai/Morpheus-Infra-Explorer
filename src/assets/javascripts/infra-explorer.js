@@ -1849,7 +1849,18 @@
 					text += ' ' + t('paths.expected', { expected: formatNumber(host.expectedPaths) });
 				}
 			}
-			return host.error ? text + ' (' + host.error + ')' : text;
+			// A host is also down with all paths active if the datastore is not mounted or withdrawn there
+			var reasons = [];
+			if (host.mounted === false) {
+				reasons.push(t('paths.notMounted'));
+			}
+			if (host.withdrawn === true) {
+				reasons.push(t('paths.withdrawn'));
+			}
+			if (host.error) {
+				reasons.push(host.error);
+			}
+			return reasons.length ? text + ' (' + reasons.join(', ') + ')' : text;
 		});
 		line.title = [t('paths.title'), summary].concat(details).join('\n');
 		return line;
