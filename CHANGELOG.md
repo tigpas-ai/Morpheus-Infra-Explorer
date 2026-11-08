@@ -3,7 +3,7 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
-## Unreleased
+## 0.21.0 – 2026-11-08
 - Storage view: the host tooltip of the path state names the reason when a host is down despite active paths
   ("not mounted", "withdrawn", "pool inactive") or its mount check failed. Cluster-level `orphanMounts` of the Storage Path Monitor
   are not shown in the overview (they belong to no datastore).
