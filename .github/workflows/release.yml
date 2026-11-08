@@ -1,0 +1,58 @@
+name: Release
+
+# Runs when a version tag (v<version>) is pushed: checks that tag, gradle.properties and CHANGELOG.md agree,
+# runs the tests, builds the jar and publishes it as a GitHub release asset together with a SHA-256 file.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-java@v4.7.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Check version
+        id: version
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          declared=$(sed -n 's/^version=//p' gradle.properties)
+          if [[ $version != "$declared" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match version=$declared in gradle.properties" >&2
+            exit 1
+          fi
+          # Release notes: the CHANGELOG section of this version
+          awk -v v="$version" '
+            $0 ~ "^## " v "( |$)" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            echo "No CHANGELOG.md section found for $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Unit tests and build
+        run: ./gradlew --no-daemon test shadowJar
+      - name: Checksum
+        run: |
+          cd build/libs
+          sha256sum "infra-explorer-${{ steps.version.outputs.version }}-all.jar" \
+            > "infra-explorer-${{ steps.version.outputs.version }}-all.jar.sha256"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${{ steps.version.outputs.version }}
+          gh release create "$GITHUB_REF_NAME" \
+            "build/libs/infra-explorer-$v-all.jar" \
+            "build/libs/infra-explorer-$v-all.jar.sha256" \
+            --title "$v" --notes-file release-notes.md --verify-tag

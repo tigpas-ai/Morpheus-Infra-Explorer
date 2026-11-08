@@ -47,7 +47,8 @@ Temurin 17 from https://adoptium.net – `java -version` must report `17.x`, or 
 ```
 
 ### Install
-Upload the jar in Morpheus under *Administration → Integrations → Plugins → Upload File*, or via the API:
+Download `infra-explorer-<version>-all.jar` (and its `.sha256` file) from the [releases](../../releases) page, or build it
+yourself. Upload the jar in Morpheus under *Administration → Integrations → Plugins → Upload File*, or via the API:
 ```bash
 curl -fsS -H "Authorization: Bearer $TOKEN" -F "file=@build/libs/infra-explorer-<version>-all.jar" \
   "https://<morpheus>/api/plugins/upload"
@@ -95,6 +96,9 @@ previously installed version with its settings (or removes the plugin if it was 
 
 Releases are annotated tags `v<version>` (version in `gradle.properties`, entry in `CHANGELOG.md`);
 `scripts/build-release.sh <version>` builds the jar of a released version into `build/releases/`.
+Pushing a tag `v<version>` starts the `Release` workflow: it checks that tag, `gradle.properties` and the
+`CHANGELOG.md` section agree, runs the tests, builds the jar and publishes it with a SHA-256 file as a
+[GitHub release](../../releases) (the release notes are the changelog section).
 
 ### Translations
 All overlay texts live in [`src/assets/javascripts/infra-explorer-messages.js`](src/assets/javascripts/infra-explorer-messages.js),
