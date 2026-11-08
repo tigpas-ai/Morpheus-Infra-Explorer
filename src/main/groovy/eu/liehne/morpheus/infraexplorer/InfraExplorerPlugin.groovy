@@ -10,7 +10,7 @@ class InfraExplorerPlugin extends Plugin {
 	static final String AUTHOR = 'Pascal Liehne'
 	static final String LICENSE = 'MIT'
 	static final String DESCRIPTION = 'Hierarchical infrastructure navigation as an overlay: clusters, hosts, VMs, VM folders, networks and storage'
-	static final String REPOSITORY_URL = 'https://github.com/tigpas-ai/morpheus-infra-explorer'
+	static final String REPOSITORY_URL = 'https://github.com/tigpas-ai/Morpheus-Infra-Explorer'
 
     @Override
     String getCode() {

@@ -20,10 +20,15 @@ class ReleaseMetadataSpec extends Specification {
 		new File('CHANGELOG.md').text.contains("\n## ${version} – ")
 	}
 
+	def "the plugin version in the header of CONTRACT.md is the current version"() {
+		expect:
+		new File('CONTRACT.md').text.contains("\n- Plugin version: ${version()} (")
+	}
+
 	def "every repository link in the documentation points to the repository of the plugin"() {
 		given:
 		List<String> links = ['README.md', 'CHANGELOG.md', 'SECURITY.md'].collectMany { name ->
-			(new File(name).text =~ /https:\/\/github\.com\/[^\s)`]+/).collect { it as String }
+			(new File(name).text =~ /https:\/\/github\.com\/[^\s)`>]+/).collect { it as String }
 		}
 
 		expect:

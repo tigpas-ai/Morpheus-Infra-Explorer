@@ -18,7 +18,7 @@ class InfraExplorerPluginSpec extends Specification {
 		plugin.name == 'Infra Explorer'
 		plugin.author == 'Pascal Liehne'
 		plugin.description.contains('networks')
-		plugin.sourceCodeLocationUrl == 'https://github.com/tigpas-ai/morpheus-infra-explorer'
+		plugin.sourceCodeLocationUrl == 'https://github.com/tigpas-ai/Morpheus-Infra-Explorer'
 		plugin.websiteUrl == plugin.sourceCodeLocationUrl
 		plugin.issueTrackerUrl == plugin.sourceCodeLocationUrl + '/issues'
 		plugin.providers*.code == [InfraExplorerOverlayProvider.PROVIDER_CODE]

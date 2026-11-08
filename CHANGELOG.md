@@ -14,7 +14,7 @@ All notable changes to this plugin. The interface (endpoints, options, data form
 
 ## 0.20.1 – 2026-11-01
 - Plugin metadata: website, source code and issue tracker point to the repository
-  (https://github.com/tigpas-ai/morpheus-infra-explorer), shown in the plugin list of Morpheus.
+  (https://github.com/tigpas-ai/Morpheus-Infra-Explorer), shown in the plugin list of Morpheus.
 - Integration test `./gradlew integrationTest` against a Morpheus appliance: installs the built jar, checks overlay,
   assets, data routes, settings, error handling and permissions (with a temporary test user and role), optionally the
   Storage Path Monitor path state, and restores the previous state afterwards – previous version with its settings

@@ -62,6 +62,9 @@ is a separate plugin with its own contract ("one plugin, one task"): Storage Pat
 route `GET /plugin/storage-path-monitor/paths?clusterId=<id>` (UI session; counters per datastore and state per host).
 The overlay reads it in the background per expanded cluster (cached like the CPU/RAM values); a non-JSON answer
 (plugin not installed) or 403 hides the line and is asked again after 5 minutes. Unknown states count as unknown (❔).
+Minimum versions of Storage Path Monitor for the reasons in the host tooltip: `mounted`/`withdrawn` from 0.4.0,
+`poolActive` from 0.5.0. The overlay only names a reason if the field is present with the exact value
+(`mounted === false`, `withdrawn === true`, `poolActive === false`), so older versions show no reason.
 
 Languages (requested 2026-10-31, implemented in 0.18.0): English by default, German as the first further language, more
 to follow. The overlay takes the language from the `lang` attribute of the Morpheus page (verified: `en-US`, with

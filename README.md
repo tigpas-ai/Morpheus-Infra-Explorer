@@ -6,25 +6,8 @@ networks and the storage of each cluster. From the tree you can open the VM page
 reconfigure. The first version supports HVM clusters. Details and open points: [`REQUIREMENTS.md`](REQUIREMENTS.md).
 
 > Tested with **HPE Morpheus 9.1.0** (plugin API 1.4.1) and HVM clusters.
-
-## Features
-- **Clusters** – clusters, their hosts and the VMs of each host, with power state and CPU/RAM utilization.
-- **Instances** – VMs grouped by tenant and folders. Folders are plain Morpheus tags on the server
-  (`Folder-1=Prod`, `Folder-2=Web` → `Prod / Web`), so they stay visible in the API and survive uninstalling the plugin.
-  VMs can be moved by context menu or drag and drop; folders and levels can be renamed.
-- **Networks** – networks of each cluster with VLAN, IP networks (CIDR, subnets) and the number of VMs, and below
-  them the VMs with their addresses in that network. A VM with several network interfaces appears below each of its
-  networks.
-- **Storage** – datastores of each cluster with capacity and usage. If the separate Storage Path Monitor plugin
-  (code `storage-path-monitor`) is installed, shared datastores also show the state of their storage paths per node
-  (e.g. `Nodes: 2 ✅, 1 ⚠️`); clicking it opens that plugin's detail view.
-- Actions via context menu (right-click, Shift+F10 or the context menu key): details page, console, power,
-  reconfigure, convert to managed, maintenance mode, cluster refresh, new instance in a folder.
-- The permissions of the signed-in user apply: nothing is shown or offered that the user could not see or do in
-  Morpheus.
-- Languages: English (default) and German. The overlay follows the language of the Morpheus UI (user or appliance
-  locale, otherwise the browser language).
-- The info button (ⓘ) in the overlay shows version, author and license.
+>
+> Source: <https://github.com/tigpas-ai/Morpheus-Infra-Explorer>
 
 ## Contents
 | Path | Content |
@@ -71,12 +54,33 @@ the servers (`Folder-1` …) are ordinary Morpheus tags and stay in place; remov
 The setting can be changed under *Administration → Integrations → Plugins*, via the API or with "Edit levels …" in
 the instances view of the overlay.
 
+## Features
+- **Clusters** – clusters, their hosts and the VMs of each host, with power state and CPU/RAM utilization.
+- **Instances** – VMs grouped by tenant and folders. Folders are plain Morpheus tags on the server
+  (`Folder-1=Prod`, `Folder-2=Web` → `Prod / Web`), so they stay visible in the API and survive uninstalling the plugin.
+  VMs can be moved by context menu or drag and drop; folders and levels can be renamed.
+- **Networks** – networks of each cluster with VLAN, IP networks (CIDR, subnets) and the number of VMs, and below
+  them the VMs with their addresses in that network. A VM with several network interfaces appears below each of its
+  networks.
+- **Storage** – datastores of each cluster with capacity and usage. If the separate Storage Path Monitor plugin
+  (code `storage-path-monitor`) is installed, shared datastores also show the state of their storage paths per node
+  (e.g. `Nodes: 2 ✅, 1 ⚠️`); clicking it opens that plugin's detail view.
+- Actions via context menu (right-click, Shift+F10 or the context menu key): details page, console, power,
+  reconfigure, convert to managed, maintenance mode, cluster refresh, new instance in a folder.
+- The permissions of the signed-in user apply: nothing is shown or offered that the user could not see or do in
+  Morpheus.
+- Languages: English (default) and German. The overlay follows the language of the Morpheus UI (user or appliance
+  locale, otherwise the browser language).
+- The info button (ⓘ) in the overlay shows version, author and license.
+
 ## Scope
 - Cluster types: HVM. Type-specific code sits behind an interface (`InfraSource`) so further cluster types can be
   added.
 - Read and navigate; actions use existing Morpheus functions (links, API) – no own provisioning logic.
 - The storage path state needs the separate Storage Path Monitor plugin; without it the storage view shows capacity
-  and usage only.
+  and usage only. The reasons named in the host tooltip of the path state ("not mounted", "withdrawn") need
+  Storage Path Monitor 0.4.0 or later, "pool inactive" needs 0.5.0 or later; with older versions the tooltip simply
+  shows no reason.
 
 ## Development
 ```bash
@@ -118,7 +122,7 @@ The Gradle project was created with the plugin generator of the Morpheus Develop
 - [Morpheus API reference](https://apidocs.morpheusdata.com/)
 
 ## Author
-Pascal Liehne – https://github.com/tigpas-ai/morpheus-infra-explorer
+Pascal Liehne
 
 ## License
 [MIT](LICENSE), © 2026 Pascal Liehne. HPE and Morpheus are trademarks of Hewlett Packard Enterprise; this project is
