@@ -10,7 +10,7 @@ VMs in folders, storage per cluster. It complements the Morpheus UI and does not
 - A small button is visible at the bottom left of **every** Morpheus page.
 - Clicking it opens a menu or panel above the page (overlay); the page itself stays unchanged.
 - Content (trees, lists) is loaded **on demand** (when a tab is opened or a node is expanded), not when any
-  Morpheus page loads.
+  Morpheus page loads – except when the panel was left open on the previous page (see Panel state).
 - No specific template to follow; implemented according to the plugin API and documentation.
 
 ## Views
@@ -53,6 +53,34 @@ user in localStorage under a pseudonymous key (truncated SHA-256 of user ID and 
 permissions). The entry survives logging out; renaming the user discards it.
 It therefore applies across tabs and sessions in this browser, but not on other devices. The plugin API offers no
 per-user storage on the server. The window limits the stored size so the panel never extends past the edge.
+
+Panel state (requested 2026-11-11, implemented in 0.22.0): the panel stays open across page changes – if it was open,
+it opens again directly when the next page loads (without taking the focus from the page, and then prefetches like a
+normal opening). It keeps the shown view, the expanded nodes of every view and the scroll position per view in the
+sessionStorage of the browser tab (key `infra-explorer.state`), under the same opaque user/tenant/permission key as the
+cached answers, so another user or changed permissions start with the default state. Expanded nodes are identified by
+their path in the view (e.g. `cluster:3/host:7`, `tenant:1/folder:Prod`); collapsing a node keeps the state below it, at
+most 300 nodes per view are remembered (not the folders opened by hovering during drag and drop); renaming a folder
+forgets its state. Remembered nodes expand again level by level as their data arrives; the scroll position is applied
+again while the view fills in (up to 5 s, until the user scrolls or acts in the list). Because every expansion is
+remembered, a newer answer that differs from the shown one rebuilds its list and the nodes expand again (before 0.22.0
+it was skipped while a node was expanded, which kept added objects hidden); scroll position and keyboard focus are
+kept, and while a VM is dragged the rebuild waits. The panel lies above Morpheus dialogs (`z-index`), so any Bootstrap
+dialog of the page (`show.bs.modal`) hides it and closing the last dialog (`hidden.bs.modal`) shows it again; this does
+not count as closing it.
+
+Console from the power state (requested 2026-11-11, implemented in 0.22.0): for running VMs with the `console` action the
+green power dot is a link to `/terminal/server/<id>` and opens the console like the menu entry (with a modifier key the
+browser opens the link itself).
+
+Drag and drop scrolling (requested 2026-11-11, implemented in 0.22.0): while a VM is dragged in the instances view, the
+list scrolls when the pointer is within 60 px of its top or bottom edge, faster the closer it is to the edge (quadratic,
+up to 24 px per frame); above or below the list (header, status line, outside the panel within its width) at full
+speed. Scrolling stops when the drag ends or no `dragover` arrives for 400 ms.
+
+Fading (requested 2026-11-11, implemented in 0.22.0): 5 s after the pointer has left the overlay (panel, its menus and
+dialogs), the panel turns half transparent (opacity 0.5) until the pointer is back; not while a VM is dragged or the
+keyboard focus is visibly in the panel; touch input does not fade it. It stays usable while faded.
 
 Path state of shared storage (requested 2026-10-31, implemented in 0.19.0): in the storage view each shared datastore shows
 per node whether all storage paths are up (✅, muted), some are down (⚠️) or none is up (❌), e.g. `Nodes: 1 ✅, 2 ⚠️`.

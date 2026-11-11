@@ -49,6 +49,7 @@ window.InfraExplorerMessages = {
 		'power.paused': 'paused',
 		'power.unknown': 'unknown',
 		'power.title': 'Power: {state}',
+		'power.consoleTitle': 'Power: {state} – open the console',
 		'storage.free': '{size} free',
 
 		'paths.label': 'Nodes:',
@@ -230,6 +231,7 @@ window.InfraExplorerMessages = {
 		'power.paused': 'pausiert',
 		'power.unknown': 'unbekannt',
 		'power.title': 'Betriebszustand: {state}',
+		'power.consoleTitle': 'Betriebszustand: {state} – Konsole öffnen',
 		'storage.free': '{size} frei',
 
 		'paths.label': 'Nodes:',

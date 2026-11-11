@@ -419,6 +419,40 @@
 	background: var(--ie-accent);
 }
 
+/* Running VM with console: the dot opens the console; a transparent border enlarges the target to 16 px without
+   changing the row height (negative vertical margins) */
+#ie-root a.ie-power {
+	box-sizing: content-box;
+	margin-top: -4px;
+	margin-right: 4px;
+	margin-bottom: -4px;
+	border: 4px solid transparent;
+	background-clip: padding-box;
+	cursor: pointer;
+}
+
+#ie-root a.ie-power:hover {
+	border-color: rgba(23, 208, 166, 0.35);
+}
+
+#ie-root a.ie-power:focus-visible {
+	outline: 2px solid var(--ie-accent);
+	outline-offset: 0;
+}
+
+/* Half transparent a while after the pointer left the overlay, unless the keyboard focus is in the panel */
+.ie-panel {
+	transition: opacity 0.3s ease;
+}
+
+.ie-panel.ie-faded {
+	opacity: 0.5;
+}
+
+.ie-panel.ie-faded:has(:focus-visible) {
+	opacity: 1;
+}
+
 .ie-power-off {
 	background: var(--ie-danger);
 }

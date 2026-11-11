@@ -4,7 +4,7 @@ Describes everything the plugin exposes, so that API clients and scripts can rel
 plugin code. On every change: increase the version and record the change in the log below.
 
 - Contract version: 0.16.0
-- Plugin version: 0.21.0 (plugin API 1.4.1)
+- Plugin version: 0.22.0 (plugin API 1.4.1)
 - Minimum Morpheus version: 9.1.0
 
 ## Endpoints / providers
