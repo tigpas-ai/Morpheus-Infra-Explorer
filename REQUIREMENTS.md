@@ -78,8 +78,9 @@ list scrolls when the pointer is within 60 px of its top or bottom edge, faster 
 up to 24 px per frame); above or below the list (header, status line, outside the panel within its width) at full
 speed. Scrolling stops when the drag ends or no `dragover` arrives for 400 ms.
 
-Fading (requested 2026-11-11, implemented in 0.22.0): 5 s after the pointer has left the overlay (panel, its menus and
-dialogs), the panel turns half transparent (opacity 0.5) until the pointer is back; not while a VM is dragged or the
+Fading (requested 2026-11-11, implemented in 0.22.0): 3 s after the pointer has left the overlay (panel, its menus and
+dialogs), the panel fades gradually over 3 s to half transparent (opacity 0.5) and turns opaque again within 0.2 s
+when the pointer is back; not while a VM is dragged or the
 keyboard focus is visibly in the panel; touch input does not fade it. It stays usable while faded.
 
 Path state of shared storage (requested 2026-10-31, implemented in 0.19.0): in the storage view each shared datastore shows

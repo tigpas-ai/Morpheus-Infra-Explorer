@@ -2753,7 +2753,7 @@
 	// --- Fading while the pointer is outside ---
 	// FADE_DELAY_MS after the pointer has left the overlay (panel, its menus and dialogs), the panel turns half
 	// transparent until the pointer is back; never while a VM is dragged or the keyboard focus is in the panel (CSS)
-	var FADE_DELAY_MS = 5000;
+	var FADE_DELAY_MS = 3000;
 	var fadeTimer = null;
 	var pointerInside = false;
 
