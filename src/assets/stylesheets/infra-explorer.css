@@ -419,6 +419,41 @@
 	background: var(--ie-accent);
 }
 
+/* Running VM with console: the dot opens the console; a transparent border enlarges the target to 16 px without
+   changing the row height (negative vertical margins) */
+#ie-root a.ie-power {
+	box-sizing: content-box;
+	margin-top: -4px;
+	margin-right: 4px;
+	margin-bottom: -4px;
+	border: 4px solid transparent;
+	background-clip: padding-box;
+	cursor: pointer;
+}
+
+#ie-root a.ie-power:hover {
+	border-color: rgba(23, 208, 166, 0.35);
+}
+
+#ie-root a.ie-power:focus-visible {
+	outline: 2px solid var(--ie-accent);
+	outline-offset: 0;
+}
+
+/* Half transparent a while after the pointer left the overlay, unless the keyboard focus is in the panel:
+   short fade in both directions (the script sets the same transition inline, see FADE_TRANSITION) */
+.ie-panel {
+	transition: opacity 0.3s ease-out;
+}
+
+.ie-panel.ie-faded {
+	opacity: 0.5;
+}
+
+.ie-panel.ie-faded:has(:focus-visible) {
+	opacity: 1;
+}
+
 .ie-power-off {
 	background: var(--ie-danger);
 }
@@ -439,6 +474,26 @@
 .ie-node-datastore > .ie-row {
 	align-items: flex-start;
 	padding: 3px 0;
+}
+
+.ie-toggle-caret {
+	flex: none;
+	width: 12px;
+	margin-left: 4px;
+	padding: 0;
+	justify-content: center;
+}
+
+.ie-name-toggle {
+	cursor: pointer;
+}
+
+/* Fixed width, so the usage bars of all datastores end at the same place */
+.ie-node-datastore > .ie-row > .ie-count {
+	flex: none;
+	margin-left: 0;
+	min-width: 2.5em;
+	text-align: right;
 }
 
 .ie-stack {
@@ -497,10 +552,23 @@
 
 /* VLAN and IP networks of a network, addresses of a VM in a network: shortened first when space is short */
 .ie-net,
-.ie-ips {
+.ie-ips,
+.ie-nics {
 	flex: 0 1 auto;
 	min-width: 0;
-	margin-left: 8px;
+	margin-left: auto;
+}
+
+/* VM below a network: addresses, interface labels, host and power dot are anchored on the right */
+.ie-ips + .ie-nics,
+.ie-ips + .ie-host,
+.ie-nics + .ie-host {
+	margin-left: 10px;
+}
+
+.ie-nics {
+	min-width: 4em;
+	text-align: right;
 }
 
 .ie-net + .ie-meta {
@@ -827,4 +895,53 @@
 .ie-load + .ie-power,
 .ie-load + .ie-meta {
 	margin-left: 2px;
+}
+
+/* Configured resources of a VM (vCPUs, memory, disks): small symbols with values before the power badge */
+.ie-config {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
+	color: var(--ie-muted);
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.ie-config-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+}
+
+.ie-config-icon {
+	width: 12px;
+	height: 12px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.3;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.ie-config + .ie-host {
+	margin-left: 10px;
+}
+
+/* Fixed widths of the resource values, so they stand in columns; the host takes only the space of its name */
+.ie-config-cpu {
+	min-width: 34px;
+}
+
+.ie-config-ram {
+	min-width: 40px;
+}
+
+.ie-config-disk {
+	min-width: 56px;
+}
+
+.ie-config + .ie-power {
+	margin-left: 6px;
 }

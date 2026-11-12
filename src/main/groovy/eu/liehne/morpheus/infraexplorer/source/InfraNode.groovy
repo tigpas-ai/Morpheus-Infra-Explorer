@@ -47,6 +47,12 @@ class InfraNode {
 	/** VMs with instance only: Morpheus UI page of the instance */
 	String instanceUrl
 
+	/** VMs only: configured (not used) resources – vCPUs, memory and total disk size in bytes, the disks as {name, size} */
+	Integer cores
+	Long memory
+	Long storage
+	List<Map<String, Object>> disks
+
 	/** Datastores only: capacity and free space in bytes, availability */
 	Long storageSize
 	Long freeSpace
@@ -61,13 +67,16 @@ class InfraNode {
 	Integer vmCount
 	/** VMs below a network only: addresses of the VM's interfaces in this network */
 	List<String> ipAddresses
+	/** VMs below a network only: the interfaces in this network as {name, macAddress, type, primary, dhcp, addresses} */
+	List<Map<String, Object>> interfaces
 
 	Map<String, Object> toJson() {
 		[id: id, name: name, status: status, powerState: powerState, type: type,
 		 clusterId: clusterId, hostId: hostId, instanceId: instanceId, managed: managed, url: url, storageSize: storageSize, freeSpace: freeSpace,
 		 online: online, hostName: hostName, tenantId: tenantId, tenant: tenant, folders: folders, instanceUrl: instanceUrl,
 		 maintenance: maintenance, actions: actions, vlanId: vlanId, cidr: cidr, cidrIPv6: cidrIPv6, subnets: subnets,
-		 vmCount: vmCount, vms: vms?.collect { it.toJson() }, ipAddresses: ipAddresses].findAll { it.value != null }
+		 vmCount: vmCount, vms: vms?.collect { it.toJson() }, ipAddresses: ipAddresses, cores: cores, memory: memory,
+		 storage: storage, disks: disks, interfaces: interfaces].findAll { it.value != null }
 	}
 
 	/** Sorts in place by name, case-insensitive; nodes without name first. */

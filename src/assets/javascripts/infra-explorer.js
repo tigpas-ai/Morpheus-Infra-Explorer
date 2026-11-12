@@ -373,51 +373,50 @@
 		prefetchLoad('/vm-folders').catch(function () { /* shown in the view */ });
 	}
 
-	// Ids of all listed objects of an answer, e.g. "vms:16"
-	function idsOf(data) {
-		var ids = [];
-		Object.keys(data || {}).forEach(function (key) {
-			if (Array.isArray(data[key])) {
-				data[key].forEach(function (item) {
-					if (item && item.id !== undefined) {
-						ids.push(key + ':' + item.id);
-					}
-				});
-			}
-		});
-		return ids;
-	}
-
-	// Renders the first answer and later answers that differ. If the user has meanwhile expanded a node in the
-	// container, a newer answer is only rendered when objects were removed (replacing would collapse the node).
+	// Renders the first answer and later answers that differ. Expanded nodes are remembered (panel state), so a newer
+	// answer rebuilds the container and its nodes expand again; scroll position and keyboard focus are kept.
 	// Lost session or permission replaces whatever is shown; other errors only show while nothing is shown.
 	function updater(container, show, alive) {
 		var shownJson = null;
-		var shownIds = [];
-		return {
+		var latest = null;
+		var api = {
 			render: function (data) {
+				latest = data;
 				var json = JSON.stringify(data);
 				if ((alive && !alive()) || json === shownJson) {
 					return;
 				}
-				var ids = idsOf(data);
-				var removed = shownIds.some(function (id) { return ids.indexOf(id) === -1; });
-				if (shownJson !== null && !removed && container.querySelector('.ie-toggle[aria-expanded="true"]')) {
+				var rebuild = shownJson !== null;
+				// Rebuilding would remove the dragged VM and end the drag: wait for the drop
+				if (rebuild && dragged) {
+					setTimeout(function () {
+						if (latest === data) {
+							api.render(data);
+						}
+					}, DRAG_RETRY_MS);
 					return;
 				}
 				shownJson = json;
-				shownIds = ids;
+				if (!rebuild) {
+					show(data);
+					return;
+				}
+				holdScroll(container);
+				var focus = focusedNode(container);
 				show(data);
+				if (focus) {
+					refocus(container, focus);
+				}
 			},
 			fail: function (error) {
 				if ((alive && !alive()) || (shownJson !== null && !revokes(error))) {
 					return;
 				}
 				shownJson = null;
-				shownIds = [];
 				container.replaceChildren(message(errorText(error), 'ie-error'));
 			}
 		};
+		return api;
 	}
 
 	// --- Actions per VM ------------------------------------------------------------------------------------------
@@ -776,7 +775,6 @@
 		}
 		var tags = tagsFromHash(window.location.hash);
 		history.replaceState(null, '', window.location.pathname + window.location.search);
-		closePanelForDialog();
 		var open = function () {
 			var add = document.querySelector('.add-instance[data-target="#new-instance-modal"]');
 			var modal = document.getElementById('new-instance-modal');
@@ -1391,11 +1389,44 @@
 		statusTimer = setTimeout(function () { statusLine.hidden = true; }, isError ? 15000 : 6000);
 	}
 
-	// The panel lies above Morpheus dialogs (z-index); it closes when one of them is opened from the menu
-	function closePanelForDialog() {
-		if (!panel.hidden) {
-			setOpen(false);
+	// The panel lies above Morpheus dialogs (z-index); it hides while one of them is shown (opened from the menu or on
+	// the page itself) and opens again when the last dialog is closed. Uses the Bootstrap events of Morpheus (jQuery),
+	// so the panel only hides when a dialog really opens.
+	function closePanelForDialog(event) {
+		if (panel.hidden) {
+			return;
 		}
+		// Morpheus components also trigger the event on elements that never become a visible dialog (e.g. the date
+		// picker while the page loads): only a dialog that is really displayed counts, hence "shown", not "show"
+		var target = event && event.target;
+		if (!target || !target.classList || !target.classList.contains('modal') || !target.getClientRects().length) {
+			return;
+		}
+		setOpen(false, { keep: true });
+		$jq(document).one('hidden.bs.modal', reopenAfterDialog);
+	}
+
+	function reopenAfterDialog() {
+		// Stacked dialogs: wait for the last one
+		if (document.querySelector('.modal.in, .modal.show')) {
+			$jq(document).one('hidden.bs.modal', reopenAfterDialog);
+			return;
+		}
+		if (uiState.open && panel.hidden) {
+			setOpen(true, { restore: true });
+		}
+	}
+
+	function watchDialogs() {
+		if (window.jQuery) {
+			window.jQuery(document).on('shown.bs.modal', closePanelForDialog);
+			return true;
+		}
+		return false;
+	}
+
+	if (!watchDialogs()) {
+		document.addEventListener('DOMContentLoaded', watchDialogs);
 	}
 
 	// On a server page opened from the menu: open the dialog of Morpheus itself (only if Morpheus shows its link)
@@ -1406,7 +1437,6 @@
 			return;
 		}
 		history.replaceState(null, '', window.location.pathname + window.location.search);
-		closePanelForDialog();
 		var open = function () {
 			var link = document.querySelector(selector);
 			if (link) {
@@ -1430,12 +1460,138 @@
 		return t('error.loading', { error: error.message });
 	}
 
-	function powerBadge(state) {
+	// Configured resources of a VM (not the usage): vCPUs, memory (rounded GB) and total disk size, each with a small
+	// symbol; the tooltip has the details, one line per disk
+	var GIB = 1024 * 1024 * 1024;
+	var TIB = GIB * 1024;
+	var SVG_NS = 'http://www.w3.org/2000/svg';
+	var CONFIG_ICONS = {
+		// chip: square with pins
+		cpu: 'M5 5h6v6H5zM7 2v3M9 2v3M7 11v3M9 11v3M2 7h3M2 9h3M11 7h3M11 9h3',
+		// memory module: bar with chips and contacts
+		ram: 'M1.5 4.5h13v6h-13zM4 10.5v2.5M7 10.5v2.5M10 10.5v2.5M13 10.5v2.5M4 7h2M8 7h2',
+		// disk: cylinder
+		disk: 'M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2zM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2'
+	};
+
+	// Sizes in the rows: GB without decimals, from one TB always one decimal. The tooltip (precise) shows from one GB one
+	// decimal unless it is zero, from one TB always one decimal, below one GB up to two decimals.
+	function formatDiskSize(bytes, precise) {
+		if (bytes >= TIB) {
+			return formatNumber(bytes / TIB, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' TB';
+		}
+		var digits = !precise ? 0 : bytes >= GIB ? 1 : 2;
+		return formatNumber(bytes / GIB, { maximumFractionDigits: digits }) + ' GB';
+	}
+
+	// Really used space of a thin disk: below one GB in KB or MB, otherwise like the sizes above
+	function formatUsedSize(bytes, precise) {
+		if (bytes >= GIB) {
+			return formatDiskSize(bytes, precise);
+		}
+		return bytes >= 1024 * 1024 ? formatNumber(bytes / (1024 * 1024), { maximumFractionDigits: 0 }) + ' MB'
+			: formatNumber(bytes / 1024, { maximumFractionDigits: 0 }) + ' KB';
+	}
+
+	function configItem(icon, text) {
+		var item = el('span', 'ie-config-item ie-config-' + icon);
+		var svg = document.createElementNS(SVG_NS, 'svg');
+		svg.setAttribute('viewBox', '0 0 16 16');
+		svg.setAttribute('class', 'ie-config-icon');
+		svg.setAttribute('aria-hidden', 'true');
+		var path = document.createElementNS(SVG_NS, 'path');
+		path.setAttribute('d', CONFIG_ICONS[icon]);
+		svg.appendChild(path);
+		item.appendChild(svg);
+		item.appendChild(document.createTextNode(text));
+		return item;
+	}
+
+	// onStore: VM row below a datastore – only the disks there, with the space really used next to the configured size
+	function vmConfig(node, onStore) {
+		var hasCores = !onStore && typeof node.cores === 'number' && node.cores > 0;
+		var hasMemory = !onStore && typeof node.memory === 'number' && node.memory > 0;
+		var hasStorage = typeof node.storage === 'number' && node.storage > 0;
+		if (!hasCores && !hasMemory && !hasStorage) {
+			return null;
+		}
+		var box = el('span', 'ie-config');
+		var lines = [];
+		if (hasCores) {
+			box.appendChild(configItem('cpu', formatNumber(node.cores)));
+			lines.push(tn('config.cores', node.cores));
+		}
+		if (hasMemory) {
+			box.appendChild(configItem('ram', formatNumber(Math.max(1, Math.round(node.memory / GIB)))));
+			lines.push(t('config.memory', { size: formatDiskSize(node.memory, true) }));
+		}
+		if (hasStorage) {
+			var disks = node.disks || [];
+			var allUsed = disks.length > 0 && disks.every(function (disk) { return typeof disk.used === 'number'; });
+			var usedTotal = disks.reduce(function (sum, disk) { return sum + (disk.used || 0); }, 0);
+			var total = formatDiskSize(node.storage, false);
+			box.appendChild(configItem('disk', onStore && allUsed ? formatUsedSize(usedTotal, false) + ' / ' + total : total));
+			lines.push(t('config.storage', { size: formatDiskSize(node.storage, true) }));
+			disks.forEach(function (disk, index) {
+				var size = formatDiskSize(disk.size || 0, true);
+				if (onStore && typeof disk.used === 'number') {
+					size = formatUsedSize(disk.used, true) + ' / ' + size;
+				}
+				var diskLine = disk.name ? t('config.disk', { name: disk.name, size: size })
+					: t('config.diskUnnamed', { number: index + 1, size: size });
+				lines.push('  ' + (disk.storage ? '(' + disk.storage + ') ' : '') + diskLine);
+			});
+		}
+		box.title = lines.join('\n');
+		return box;
+	}
+
+	// VM below a network: labels of its interfaces in this network, the tooltip lists the details of each interface
+	function networkInterfaces(node) {
+		var nics = node.interfaces || [];
+		if (!nics.length) {
+			return null;
+		}
+		var box = el('span', 'ie-sub ie-nics');
+		nics.forEach(function (nic, index) {
+			if (index) {
+				box.appendChild(document.createTextNode(', '));
+			}
+			var label = el('span', 'ie-nic', nic.name || t('nic.unnamed', { number: index + 1 }));
+			var lines = [nic.name ? t('nic.name', { name: nic.name }) : t('nic.unnamed', { number: index + 1 })];
+			if (nic.type) { lines.push(t('nic.type', { type: nic.type })); }
+			if (nic.macAddress) { lines.push(t('nic.mac', { mac: nic.macAddress })); }
+			if ((nic.addresses || []).length) { lines.push(t('nic.addresses', { addresses: nic.addresses.join(', ') })); }
+			if (nic.dhcp === true) { lines.push(t('nic.dhcp')); }
+			if (nic.primary === true) { lines.push(t('nic.primary')); }
+			label.title = lines.join('\n');
+			box.appendChild(label);
+		});
+		return box;
+	}
+
+	// Running VMs with console permission: the dot is a link that opens the console (same window as the menu entry)
+	function powerBadge(state, node) {
 		var known = POWER_STATES.indexOf(state) !== -1;
 		var label = known ? t('power.' + state) : state;
-		var badge = el('span', 'ie-power ie-power-' + (known ? state : 'unknown'));
-		badge.title = t('power.title', { state: label });
-		badge.appendChild(el('span', 'ie-sr', t('power.title', { state: label })));
+		var withConsole = state === 'on' && node && (node.actions || []).indexOf('console') !== -1;
+		var text = t(withConsole ? 'power.consoleTitle' : 'power.title', { state: label });
+		var badge = el(withConsole ? 'a' : 'span', 'ie-power ie-power-' + (known ? state : 'unknown'));
+		badge.title = text;
+		badge.appendChild(el('span', 'ie-sr', text));
+		if (withConsole) {
+			badge.href = '/terminal/server/' + encodeURIComponent(node.id);
+			badge.draggable = false;
+			badge.addEventListener('click', function (event) {
+				event.stopPropagation();
+				// With a modifier key the browser opens the link itself (new tab or window)
+				if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
+					return;
+				}
+				event.preventDefault();
+				openConsole(node);
+			});
+		}
 		return badge;
 	}
 
@@ -1463,6 +1619,16 @@
 			},
 			childKind: 'datastore',
 			empty: 'empty.datastores'
+		},
+		// The VMs of a datastore come with the datastores of its cluster (same answer, no extra request)
+		datastore: {
+			path: function (node) { return '/datastores?clusterId=' + encodeURIComponent(node.clusterId); },
+			items: function (data, node) {
+				var store = (data.datastores || []).filter(function (item) { return item.id === node.id; })[0];
+				return store ? store.vms || [] : [];
+			},
+			childKind: 'datastoreVm',
+			empty: 'empty.datastoreVms'
 		},
 		networkCluster: {
 			path: function (node) { return '/networks?clusterId=' + encodeURIComponent(node.id); },
@@ -1626,7 +1792,8 @@
 		}
 		// VMs below a network are VM rows (power updates, menu) with their addresses in that network
 		var addresses = kind === 'networkVm' ? node.ipAddresses || [] : null;
-		if (addresses) {
+		var onStore = kind === 'datastoreVm';
+		if (addresses || onStore) {
 			kind = 'vm';
 		}
 		var item = el('li', 'ie-node ie-node-' + kind);
@@ -1636,6 +1803,7 @@
 		// Expandable nodes only expand on click, like the folders of the instances view; their detail page is in the
 		// context menu. Leaves (VMs) link to their page.
 		if (level) {
+			item.dataset.ieKey = kind + ':' + encodeURIComponent(String(node.id));
 			var toggle = el('button', 'ie-toggle');
 			toggle.type = 'button';
 			toggle.setAttribute('aria-expanded', 'false');
@@ -1658,6 +1826,10 @@
 			ips.title = t('network.addresses', { addresses: addresses.join(', ') });
 			row.appendChild(ips);
 		}
+		var nics = addresses ? networkInterfaces(node) : null;
+		if (nics) {
+			row.appendChild(nics);
+		}
 		if (kind === 'network') {
 			networkRow(row, node);
 		}
@@ -1666,13 +1838,18 @@
 			maintenanceTag.hidden = !(hostMaintenance.hasOwnProperty(node.id) ? hostMaintenance[node.id] : node.maintenance);
 			row.appendChild(maintenanceTag);
 		}
+		// From the right: power dot, host, then the resources
+		var config = kind === 'vm' && !addresses ? vmConfig(node, onStore) : null;
+		if (config) {
+			row.appendChild(config);
+		}
 		if (node.hostName) {
 			var host = el('span', 'ie-host', node.hostName);
 			host.title = t('tree.host', { name: node.hostName });
 			row.appendChild(host);
 		}
 		if (node.powerState) {
-			row.appendChild(powerBadge(vmPower[node.id] || node.powerState));
+			row.appendChild(powerBadge(vmPower[node.id] || node.powerState, kind === 'vm' ? node : null));
 		} else if (node.status && kind !== 'network') {
 			row.appendChild(el('span', 'ie-meta', node.status));
 		}
@@ -1718,7 +1895,7 @@
 			}
 			vmPower[vm.id] = vm.powerState;
 			root.querySelectorAll('.ie-node-vm[data-ie-vm-id="' + vm.id + '"] > .ie-row > .ie-power').forEach(function (badge) {
-				badge.replaceWith(powerBadge(vm.powerState));
+				badge.replaceWith(powerBadge(vm.powerState, vm));
 			});
 		});
 	}
@@ -1728,7 +1905,26 @@
 		var row = el('div', 'ie-row');
 		row.appendChild(el('span', 'ie-leaf'));
 		var text = el('span', 'ie-stack');
-		text.appendChild(nodeLabel(node));
+		// With the VMs on the datastore (users who may see servers) the datastore expands like the other nodes
+		var level = node.vms && node.clusterId != null ? LEVELS.datastore : null;
+		if (level) {
+			item.dataset.ieKey = 'datastore:' + encodeURIComponent(String(node.id));
+			// The caret takes the place of the leaf spacer, so the rows stay aligned with the other datastores
+			row.replaceChildren();
+			var toggle = el('button', 'ie-toggle ie-toggle-caret');
+			toggle.type = 'button';
+			toggle.setAttribute('aria-expanded', 'false');
+			toggle.setAttribute('aria-label', t('tree.expand', { name: node.name }));
+			toggle.appendChild(el('span', 'ie-caret'));
+			var open = function () { toggleNode(item, toggle, level, node); };
+			toggle.addEventListener('click', open);
+			row.appendChild(toggle);
+			var title = el('span', 'ie-name ie-name-toggle', node.name);
+			title.addEventListener('click', open);
+			text.appendChild(title);
+		} else {
+			text.appendChild(nodeLabel(node));
+		}
 		if (node.type) {
 			text.appendChild(el('span', 'ie-sub', node.type));
 		}
@@ -1744,6 +1940,11 @@
 		var bar = usage(node);
 		if (bar) {
 			row.appendChild(bar);
+		}
+		if (level) {
+			var count = el('span', 'ie-meta ie-count', formatNumber(node.vmCount || 0));
+			count.title = tn('datastore.vmCount', node.vmCount || 0);
+			row.appendChild(count);
 		}
 		item.appendChild(row);
 		return item;
@@ -1932,6 +2133,7 @@
 	function showChildren(children, level, data, node) {
 		var nodes = level.items(data, node) || [];
 		children.replaceChildren(list(level.childKind, nodes, level.empty));
+		restoreExpanded(children);
 		prefetchBudget = Math.min(PREFETCH_TOTAL, prefetchBudget + PREFETCH_LIMIT);
 		prefetchTree(level.childKind, nodes);
 	}
@@ -1945,8 +2147,10 @@
 			if (children) {
 				children.remove();
 			}
+			rememberExpanded(item, false);
 			return;
 		}
+		rememberExpanded(item, true);
 		toggle.setAttribute('aria-expanded', 'true');
 		toggle.setAttribute('aria-label', t('tree.collapse', { name: node.name }));
 		children = el('div', 'ie-children');
@@ -1980,6 +2184,7 @@
 		var update = updater(container, function (data) {
 			var clusters = data.clusters || [];
 			container.replaceChildren(list(kind, clusters, 'empty.clusters'));
+			restoreExpanded(container);
 			prefetchTree(kind, clusters);
 		});
 		withData('/clusters', update.render, update.fail);
@@ -2029,7 +2234,7 @@
 					tenantLabel = step.name;
 				}
 				if (!Object.prototype.hasOwnProperty.call(folder.folders, step.key)) {
-					folder.folders[step.key] = { name: step.name, kind: step.kind, folders: {}, vms: [], count: 0,
+					folder.folders[step.key] = { key: step.key, name: step.name, kind: step.kind, folders: {}, vms: [], count: 0,
 						path: path, tenant: tenantLabel, tenantId: vm.tenantId, editable: false };
 				}
 				folder = folder.folders[step.key];
@@ -2054,6 +2259,8 @@
 	function folderItem(folder, parent) {
 		var label = folder.name;
 		var item = el('li', 'ie-node ie-node-' + (folder.kind || 'folder'));
+		var keyKind = folder.key.indexOf(':') + 1;
+		item.dataset.ieKey = folder.key.slice(0, keyKind) + encodeURIComponent(folder.key.slice(keyKind));
 		var row = el('div', 'ie-row');
 		var toggle = el('button', 'ie-toggle');
 		toggle.type = 'button';
@@ -2089,6 +2296,7 @@
 			var children = item.querySelector(':scope > .ie-children');
 			toggle.setAttribute('aria-expanded', String(!expanded));
 			toggle.setAttribute('aria-label', t(expanded ? 'tree.expand' : 'tree.collapse', { name: label }));
+			rememberExpanded(item, !expanded);
 			if (expanded) {
 				if (children) {
 					children.remove();
@@ -2098,6 +2306,7 @@
 			children = el('div', 'ie-children');
 			children.appendChild(folderContent(folder));
 			item.appendChild(children);
+			restoreExpanded(children);
 		});
 		return item;
 	}
@@ -2119,6 +2328,8 @@
 	var DRAG_TYPE = 'application/x-infra-explorer-vm';
 	// Hovering a closed folder this long while dragging opens it
 	var DRAG_EXPAND_MS = 700;
+	// A newer answer that arrives while a VM is dragged is shown this long later (checked again)
+	var DRAG_RETRY_MS = 1000;
 	var dragged = null;
 
 	function draggableVm(item, vm) {
@@ -2132,14 +2343,75 @@
 			event.dataTransfer.effectAllowed = 'move';
 			event.dataTransfer.setData(DRAG_TYPE, String(vm.id));
 			closeMenu(false);
+			updateFade();
 		});
-		item.addEventListener('dragend', function () {
+		item.addEventListener('dragend', function (event) {
 			dragged = null;
+			stopDragScroll();
 			item.classList.remove('ie-dragging');
 			root.querySelectorAll('.ie-drop-target').forEach(function (row) { row.classList.remove('ie-drop-target'); });
+			// No pointer events arrive while dragging: take the end position as the pointer position (some browsers
+			// report 0/0 here; then the pointer counts as still inside until it leaves again)
+			if (event.clientX || event.clientY) {
+				var target = document.elementFromPoint(event.clientX, event.clientY);
+				pointerInside = !!target && root.contains(target);
+			}
+			updateFade();
 		});
 		return item;
 	}
+
+	// Dragging a VM near the top or bottom edge of the list scrolls it, faster the closer the pointer is to the edge;
+	// above or below the list (header, status line, outside the panel) at full speed. Only while a VM of the list is dragged.
+	var DRAG_SCROLL_ZONE = 60;
+	// Pixels per animation frame at the edge
+	var DRAG_SCROLL_MAX = 24;
+	// Browsers repeat dragover while the pointer rests; without one for this long (pointer left the page) scrolling stops
+	var DRAG_SCROLL_IDLE_MS = 400;
+	var dragScroll = { speed: 0, frame: 0, seen: 0 };
+
+	function dragScrollSpeed(x, y) {
+		var panelBox = panel.getBoundingClientRect();
+		if (panel.hidden || x < panelBox.left || x > panelBox.right) {
+			return 0;
+		}
+		var box = body.getBoundingClientRect();
+		var zone = Math.min(DRAG_SCROLL_ZONE, box.height / 4);
+		var depth = y < box.top + zone ? y - (box.top + zone) : y > box.bottom - zone ? y - (box.bottom - zone) : 0;
+		if (!depth || zone <= 0) {
+			return 0;
+		}
+		var ratio = Math.min(1, Math.abs(depth) / zone);
+		// Slow near the start of the zone for fine positioning, quickly faster towards the edge
+		return (depth < 0 ? -1 : 1) * Math.max(1, Math.round(DRAG_SCROLL_MAX * ratio * ratio));
+	}
+
+	function stepDragScroll() {
+		dragScroll.frame = 0;
+		if (!dragged || !dragScroll.speed || Date.now() - dragScroll.seen > DRAG_SCROLL_IDLE_MS) {
+			return;
+		}
+		body.scrollTop += dragScroll.speed;
+		dragScroll.frame = requestAnimationFrame(stepDragScroll);
+	}
+
+	function stopDragScroll() {
+		cancelAnimationFrame(dragScroll.frame);
+		dragScroll.frame = 0;
+		dragScroll.speed = 0;
+	}
+
+	document.addEventListener('dragover', function (event) {
+		if (!dragged) {
+			return;
+		}
+		dragScroll.speed = dragScrollSpeed(event.clientX, event.clientY);
+		dragScroll.seen = Date.now();
+		if (dragScroll.speed && !dragScroll.frame) {
+			dragScroll.frame = requestAnimationFrame(stepDragScroll);
+		}
+	}, true);
+	document.addEventListener('drop', stopDragScroll, true);
 
 	function samePath(a, b) {
 		return a.length === b.length && a.every(function (name, index) { return name === b[index]; });
@@ -2219,6 +2491,7 @@
 			folderLevels = data.levels || [];
 			instanceCreate = data.create || null;
 			container.replaceChildren(folderContent(buildFolderTree(vms)));
+			restoreExpanded(container);
 			var levels = [t('levels.tenant')].concat(data.levels || []);
 			var hint = message(t('levels.list', { levels: levels.join(' / ') }), 'ie-hint');
 			if (data.levelsEditable) {
@@ -2238,6 +2511,10 @@
 
 	function showView(view, reload) {
 		currentView = view;
+		if (uiState.view !== view) {
+			uiState.view = view;
+			saveState();
+		}
 		tabs.forEach(function (tab) {
 			tab.setAttribute('aria-pressed', String(tab.dataset.ieView === view));
 		});
@@ -2247,9 +2524,205 @@
 		}
 		if (reload || !loadedViews[view]) {
 			loadedViews[view] = VIEW_LOADERS[view]();
+			// Before the first answer is rendered, so the remembered nodes of this view are found
+			loadedViews[view].dataset.ieViewName = view;
 		}
 		body.replaceChildren(loadedViews[view]);
+		restoreScroll();
 	}
+
+	// --- Panel state in this browser tab ---
+	// Open or closed, the shown view, the expanded nodes and the scroll position per view are kept in the
+	// sessionStorage of the tab, so the panel looks the same after a page change or after closing and opening it.
+	// Stored under the same opaque key as the cached answers: another user starts with an empty state.
+
+	var STATE_KEY = 'infra-explorer.state';
+	// Remembered expanded nodes per view; the oldest are dropped first
+	var STATE_MAX_EXPANDED = 300;
+	// A restored scroll position is applied again while the view fills in (expanded nodes load one after another)
+	var SCROLL_RESTORE_MS = 5000;
+	// Same while a shown container is rebuilt with a newer answer
+	var SCROLL_HOLD_MS = 1500;
+	var uiState = readState();
+	var stateTimer = null;
+	currentView = uiState.view;
+
+	function readState() {
+		var state = { open: false, view: 'clusters', expanded: {}, scroll: {} };
+		if (!cacheKey) {
+			return state;
+		}
+		try {
+			var stored = JSON.parse(window.sessionStorage.getItem(STATE_KEY) || 'null');
+			if (!stored || typeof stored !== 'object' || stored.key !== cacheKey) {
+				return state;
+			}
+			state.open = stored.open === true;
+			if (VIEW_LOADERS.hasOwnProperty(stored.view)) {
+				state.view = stored.view;
+			}
+			Object.keys(VIEW_LOADERS).forEach(function (view) {
+				var keys = stored.expanded && stored.expanded[view];
+				if (Array.isArray(keys)) {
+					state.expanded[view] = keys.filter(function (key) { return typeof key === 'string'; }).slice(-STATE_MAX_EXPANDED);
+				}
+				var top = stored.scroll && stored.scroll[view];
+				if (typeof top === 'number' && isFinite(top) && top > 0) {
+					state.scroll[view] = Math.round(top);
+				}
+			});
+		} catch (e) {
+			// Storage unavailable or damaged: start with the default state
+		}
+		return state;
+	}
+
+	// Written shortly after the last change (scrolling changes it often) and at the latest when the page is left
+	function saveState() {
+		clearTimeout(stateTimer);
+		stateTimer = setTimeout(writeState, 200);
+	}
+
+	function writeState() {
+		clearTimeout(stateTimer);
+		stateTimer = null;
+		if (!cacheKey) {
+			return;
+		}
+		try {
+			window.sessionStorage.setItem(STATE_KEY, JSON.stringify({ key: cacheKey, open: uiState.open, view: uiState.view,
+				expanded: uiState.expanded, scroll: uiState.scroll }));
+		} catch (e) {
+			// Storage full or blocked: the state applies to this page only
+		}
+	}
+
+	window.addEventListener('pagehide', function () {
+		if (stateTimer) {
+			writeState();
+		}
+	});
+
+	// Path of a node in its view from the keys of the node and the nodes above it, e.g. "cluster:3/host:7"
+	function nodeKey(item) {
+		var parts = [];
+		for (var node = item; node && node !== root; node = node.parentElement) {
+			if (node.dataset && node.dataset.ieKey) {
+				parts.unshift(node.dataset.ieKey);
+			}
+		}
+		return parts.join('/');
+	}
+
+	function viewOf(element) {
+		var view = element.closest('.ie-view');
+		return view ? view.dataset.ieViewName : null;
+	}
+
+	function rememberExpanded(item, expanded) {
+		var view = viewOf(item);
+		// Folders opened by hovering while a VM is dragged are not remembered
+		if (!view || !item.dataset.ieKey || (expanded && dragged)) {
+			return;
+		}
+		var key = nodeKey(item);
+		var keys = (uiState.expanded[view] || []).filter(function (other) { return other !== key; });
+		if (expanded) {
+			keys.push(key);
+		}
+		uiState.expanded[view] = keys.slice(-STATE_MAX_EXPANDED);
+		saveState();
+	}
+
+	// Expands the remembered nodes directly below scope; their children call this again once they are shown, so
+	// deeper levels follow as their data arrives. Collapsing a node keeps the state of the nodes below it.
+	function restoreExpanded(scope) {
+		var view = viewOf(scope);
+		var keys = view && uiState.expanded[view];
+		if (!keys || !keys.length) {
+			return;
+		}
+		Array.prototype.forEach.call(scope.querySelectorAll(':scope > .ie-tree > .ie-node > .ie-row > .ie-toggle[aria-expanded="false"]'),
+			function (toggle) {
+				if (keys.indexOf(nodeKey(toggle.closest('.ie-node'))) !== -1) {
+					toggle.click();
+				}
+			});
+	}
+
+	// Scroll position of the shown view. While a restored position is pending (until the user scrolls or acts in the
+	// list), it is applied again whenever the content grows.
+	var scrollTarget = null;
+
+	function restoreScroll() {
+		var top = uiState.scroll[currentView] || 0;
+		scrollTarget = top ? { view: currentView, top: top, until: Date.now() + SCROLL_RESTORE_MS } : null;
+		body.scrollTop = top;
+	}
+
+	function scrollPending() {
+		if (scrollTarget && (scrollTarget.view !== currentView || panel.hidden || Date.now() > scrollTarget.until)) {
+			scrollTarget = null;
+		}
+		return !!scrollTarget;
+	}
+
+	function applyScroll() {
+		if (scrollPending()) {
+			body.scrollTop = scrollTarget.top;
+		}
+	}
+
+	// A shown container is rebuilt with a newer answer: keep the scroll position while its nodes expand again
+	function holdScroll(container) {
+		if (!scrollPending() && !panel.hidden && body.contains(container)) {
+			scrollTarget = { view: currentView, top: body.scrollTop, until: Date.now() + SCROLL_HOLD_MS };
+		}
+	}
+
+	// Node with the keyboard focus in a container (by its path, VMs by id), to focus it again after rebuilding
+	function focusedNode(container) {
+		var active = document.activeElement;
+		var item = active && container.contains(active) ? active.closest('.ie-node') : null;
+		return item ? { key: nodeKey(item), vmId: item.dataset.ieVmId } : null;
+	}
+
+	// After the remembered nodes with cached answers have expanded again (promise callbacks run first)
+	function refocus(container, focus) {
+		setTimeout(function () {
+			if (container.contains(document.activeElement) && document.activeElement !== container) {
+				return;
+			}
+			var target = null;
+			Array.prototype.forEach.call(container.querySelectorAll('.ie-node'), function (item) {
+				if (!target && nodeKey(item) === focus.key && (item.dataset.ieVmId || undefined) === focus.vmId) {
+					target = item.querySelector(':scope > .ie-row > .ie-toggle, :scope > .ie-row > .ie-name');
+				}
+			});
+			if (target) {
+				target.focus({ preventScroll: true });
+			}
+		}, 0);
+	}
+
+	new MutationObserver(applyScroll).observe(body, { childList: true, subtree: true });
+
+	['wheel', 'touchstart', 'pointerdown', 'keydown'].forEach(function (type) {
+		body.addEventListener(type, function () { scrollTarget = null; }, { passive: true });
+	});
+
+	body.addEventListener('scroll', function () {
+		if (scrollPending() || panel.hidden) {
+			return;
+		}
+		var top = Math.round(body.scrollTop);
+		if (top > 0) {
+			uiState.scroll[currentView] = top;
+		} else {
+			delete uiState.scroll[currentView];
+		}
+		saveState();
+	}, { passive: true });
 
 	// --- Panel size ---
 	// layout: { width, height } in pixels (null: stylesheet default) and maximized
@@ -2415,17 +2888,66 @@
 	applyLayout();
 	window.addEventListener('resize', updateGripValues);
 
-	function setOpen(open) {
+	// options.restore: opened again without the user (page load, after a Morpheus dialog) – the focus stays on the page;
+	// options.keep: closed only for a Morpheus dialog – the stored state stays open
+	function setOpen(open, options) {
+		options = options || {};
 		panel.hidden = !open;
 		launcher.setAttribute('aria-expanded', String(open));
 		launcher.setAttribute('aria-label', t(open ? 'launcher.close' : 'launcher.open'));
+		if (!options.keep && uiState.open !== open) {
+			uiState.open = open;
+			saveState();
+		}
 		if (open) {
 			showView(currentView);
 			updateGripValues();
 			prefetchViews();
-			panel.querySelector('.ie-tab[aria-pressed="true"]').focus();
+			if (!options.restore) {
+				panel.querySelector('.ie-tab[aria-pressed="true"]').focus();
+			}
+		}
+		updateFade();
+		if (open && options.restore && !pointerInside) {
+			// Opened again without the user: half transparent right away (no pointer over it), opaque on pointer enter
+			panel.classList.add('ie-faded');
 		}
 	}
+
+	// --- Fading while the pointer is outside ---
+	// FADE_DELAY_MS after the pointer has left the overlay (panel, its menus and dialogs), the panel turns half
+	// transparent until the pointer is back; never while a VM is dragged or the keyboard focus is in the panel (CSS)
+	var FADE_DELAY_MS = 2000;
+	// Set inline with !important: a user who asked the system for reduced motion gets "transition: none" from the
+	// Morpheus stylesheets, which would make the change abrupt; this is a short opacity change, not a movement
+	var FADE_TRANSITION = 'opacity 0.3s ease-out';
+	panel.style.setProperty('transition', FADE_TRANSITION, 'important');
+	var fadeTimer = null;
+	var pointerInside = false;
+
+	function updateFade() {
+		clearTimeout(fadeTimer);
+		fadeTimer = null;
+		if (pointerInside || panel.hidden || dragged) {
+			panel.classList.remove('ie-faded');
+			return;
+		}
+		fadeTimer = setTimeout(function () { panel.classList.add('ie-faded'); }, FADE_DELAY_MS);
+	}
+
+	root.addEventListener('pointerenter', function () {
+		pointerInside = true;
+		updateFade();
+	});
+
+	// Touch input leaves after every tap: only a mouse or pen fades the panel
+	root.addEventListener('pointerleave', function (event) {
+		if (event.pointerType === 'touch') {
+			return;
+		}
+		pointerInside = false;
+		updateFade();
+	});
 
 	launcher.addEventListener('click', function () {
 		setOpen(panel.hidden);
@@ -2454,6 +2976,10 @@
 		openNewInstanceFromHash();
 	}
 
+	// Open again on this page if it was open on the previous one (before the hash, which may close it for a dialog)
+	if (uiState.open) {
+		setOpen(true, { restore: true });
+	}
 	openFromHash();
 	window.addEventListener('hashchange', openFromHash);
 

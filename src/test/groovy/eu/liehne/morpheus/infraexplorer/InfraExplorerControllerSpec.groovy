@@ -158,6 +158,24 @@ class InfraExplorerControllerSpec extends Specification {
 		controller.datastores(model(storage, [clusterId: 'x'])).status == 400
 	}
 
+	def "adds the VMs on each datastore for users who may see servers"() {
+		given:
+		User both = new User(id: 11L, permissions: ['infrastructure-cluster': 'read', 'admin-servers': 'read',
+													'infrastructure-storage': 'read'])
+		source.listDatastores(both, 4L) >> [new InfraNode(id: 14L, name: 'cluster-store'), new InfraNode(id: 15L, name: 'other')]
+		source.listDatastoreVms(both, 4L) >> [(14L): [new InfraNode(id: 16L, name: 'vm', hostId: 13L)]]
+
+		when:
+		List stores = controller.datastores(model(both, [clusterId: '4'])).data.datastores
+
+		then:
+		stores[0].vmCount == 1
+		stores[0].vms*.id == [16L]
+		stores[0].vms[0].actions != null
+		stores[1].vmCount == 0
+		stores[1].vms == []
+	}
+
 	def "answers 404 when no source knows or shows the object"() {
 		given:
 		source.listHosts(admin, 99L) >> null

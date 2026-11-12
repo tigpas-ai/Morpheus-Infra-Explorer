@@ -55,18 +55,24 @@ The setting can be changed under *Administration → Integrations → Plugins*, 
 the instances view of the overlay.
 
 ## Features
-- **Clusters** – clusters, their hosts and the VMs of each host, with power state and CPU/RAM utilization.
+- **Clusters** – clusters, their hosts and the VMs of each host, with power state and CPU/RAM utilization. VM rows show
+  the configured vCPUs, memory and disk size; the tooltip lists every disk with its datastore.
 - **Instances** – VMs grouped by tenant and folders. Folders are plain Morpheus tags on the server
   (`Folder-1=Prod`, `Folder-2=Web` → `Prod / Web`), so they stay visible in the API and survive uninstalling the plugin.
-  VMs can be moved by context menu or drag and drop; folders and levels can be renamed.
+  VMs can be moved by context menu or drag and drop (the list scrolls when dragging near its edge); folders and levels
+  can be renamed.
 - **Networks** – networks of each cluster with VLAN, IP networks (CIDR, subnets) and the number of VMs, and below
-  them the VMs with their addresses in that network. A VM with several network interfaces appears below each of its
-  networks.
-- **Storage** – datastores of each cluster with capacity and usage. If the separate Storage Path Monitor plugin
+  them the VMs with the labels of their interfaces and their addresses in that network (details per interface in the
+  tooltip). A VM with several network interfaces appears below each of its networks.
+- **Storage** – datastores of each cluster with capacity and usage; a datastore expands to the VMs that have a disk on
+  it, with the space each disk really occupies (thin provisioning) next to its configured size. If the separate Storage Path Monitor plugin
   (code `storage-path-monitor`) is installed, shared datastores also show the state of their storage paths per node
   (e.g. `Nodes: 2 ✅, 1 ⚠️`); clicking it opens that plugin's detail view.
 - Actions via context menu (right-click, Shift+F10 or the context menu key): details page, console, power,
-  reconfigure, convert to managed, maintenance mode, cluster refresh, new instance in a folder.
+  reconfigure, convert to managed, maintenance mode, cluster refresh, new instance in a folder. The green power dot
+  of a running VM opens its console.
+- The panel stays open across page changes and keeps view, expanded nodes and scroll position for the browser tab;
+  while the pointer is outside, it turns half transparent after a few seconds.
 - The permissions of the signed-in user apply: nothing is shown or offered that the user could not see or do in
   Morpheus.
 - Languages: English (default) and German. The overlay follows the language of the Morpheus UI (user or appliance

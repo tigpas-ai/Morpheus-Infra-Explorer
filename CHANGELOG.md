@@ -3,6 +3,32 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.22.0 – 2026-11-12
+- The panel stays open across page changes: if it was open, it opens again right away on the next page (without
+  taking the focus). Morpheus dialogs hide it while they are shown, then it opens again.
+- The panel keeps its state in the browser tab (sessionStorage, per user): the shown view, the expanded nodes of every
+  view and the scroll position per view, also after closing and opening it.
+- The green power dot of a running VM opens its console (with the Remote Console permission).
+- Dragging a VM near the top or bottom edge of the list scrolls it, faster closer to the edge.
+- Two seconds after the pointer has left the overlay, the panel fades (over 0.3 s, also with "reduce motion") to half
+  transparent; it is opaque again as soon as the pointer is back. A panel that opens again on a new page starts half
+  transparent.
+- Clusters and Instances tabs: VM rows show the configured resources (not the usage): vCPUs, memory and the total disk
+  size, each with a small symbol. The tooltip has the details: memory, the total and one line per disk with its
+  datastore (`(Datastore) Name: Size`).
+- Networks tab: VM rows show the labels of the VM's interfaces in that network; the tooltip of each label has the
+  details of that interface (type, MAC address, addresses, DHCP, primary).
+- Storage tab: datastores expand and show the VMs that have a disk on them (for users who may see servers), with only
+  the disks on that datastore as `really used / configured` (thin provisioning).
+- Sizes: in the rows GB without decimals, from 1 TB always one decimal; in the tooltip from 1 GB one decimal (omitted
+  when zero), from 1 TB always one decimal. Really used space below 1 GB in KB/MB.
+- VM rows are anchored on the right in a fixed order: power dot, host, resources (in the Networks tab: interface labels
+  and addresses before the host).
+- Fixed: the reopened panel was hidden again right after loading a page, because a Morpheus component triggers a
+  dialog event on an element that never appears; only dialogs that are really displayed hide the panel now.
+- Interface 0.17.0: new optional fields `cores`, `memory`, `storage`, `disks` (`name`, `size`, `used`, `storage`,
+  `storageId`) on VMs, `interfaces` on VMs of networks, `vms` and `vmCount` on datastores.
+
 ## 0.21.0 – 2026-11-08
 - Storage view: the host tooltip of the path state names the reason when a host is down despite active paths
   ("not mounted", "withdrawn", "pool inactive") or its mount check failed. Cluster-level `orphanMounts` of the Storage Path Monitor
