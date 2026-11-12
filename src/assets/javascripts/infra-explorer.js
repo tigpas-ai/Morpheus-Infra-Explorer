@@ -1601,6 +1601,16 @@
 			childKind: 'datastore',
 			empty: 'empty.datastores'
 		},
+		// The VMs of a datastore come with the datastores of its cluster (same answer, no extra request)
+		datastore: {
+			path: function (node) { return '/datastores?clusterId=' + encodeURIComponent(node.clusterId); },
+			items: function (data, node) {
+				var store = (data.datastores || []).filter(function (item) { return item.id === node.id; })[0];
+				return store ? store.vms || [] : [];
+			},
+			childKind: 'datastoreVm',
+			empty: 'empty.datastoreVms'
+		},
 		networkCluster: {
 			path: function (node) { return '/networks?clusterId=' + encodeURIComponent(node.id); },
 			items: function (data) { return networkItems(data); },
@@ -1763,7 +1773,7 @@
 		}
 		// VMs below a network are VM rows (power updates, menu) with their addresses in that network
 		var addresses = kind === 'networkVm' ? node.ipAddresses || [] : null;
-		if (addresses) {
+		if (addresses || kind === 'datastoreVm') {
 			kind = 'vm';
 		}
 		var item = el('li', 'ie-node ie-node-' + kind);
@@ -1874,7 +1884,24 @@
 		var row = el('div', 'ie-row');
 		row.appendChild(el('span', 'ie-leaf'));
 		var text = el('span', 'ie-stack');
-		text.appendChild(nodeLabel(node));
+		// With the VMs on the datastore (users who may see servers) the datastore expands like the other nodes
+		var level = node.vms && node.clusterId != null ? LEVELS.datastore : null;
+		if (level) {
+			item.dataset.ieKey = 'datastore:' + encodeURIComponent(String(node.id));
+			row.replaceChildren();
+			var toggle = el('button', 'ie-toggle');
+			toggle.type = 'button';
+			toggle.setAttribute('aria-expanded', 'false');
+			toggle.setAttribute('aria-label', t('tree.expand', { name: node.name }));
+			toggle.appendChild(el('span', 'ie-caret'));
+			toggle.appendChild(el('span', 'ie-name', node.name));
+			toggle.addEventListener('click', function () {
+				toggleNode(item, toggle, level, node);
+			});
+			text.appendChild(toggle);
+		} else {
+			text.appendChild(nodeLabel(node));
+		}
 		if (node.type) {
 			text.appendChild(el('span', 'ie-sub', node.type));
 		}
@@ -1890,6 +1917,11 @@
 		var bar = usage(node);
 		if (bar) {
 			row.appendChild(bar);
+		}
+		if (level) {
+			var count = el('span', 'ie-meta', formatNumber(node.vmCount || 0));
+			count.title = tn('datastore.vmCount', node.vmCount || 0);
+			row.appendChild(count);
 		}
 		item.appendChild(row);
 		return item;

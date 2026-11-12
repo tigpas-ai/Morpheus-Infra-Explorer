@@ -35,7 +35,8 @@ class HvmInfraSource implements InfraSource {
 											  'computeServerType.managed', 'createdBy.id', 'maintenanceMode', 'maxCores', 'maxMemory',
 											  'maxStorage']
 	/** One row per disk of a server (left join: a server without disks gives one row with {@code null}) */
-	static final List<String> DISK_PROPS = ['id', 'volumes.id', 'volumes.name', 'volumes.maxStorage', 'volumes.datastore.name']
+	static final List<String> DISK_PROPS = ['id', 'volumes.id', 'volumes.name', 'volumes.maxStorage', 'volumes.datastore.id',
+										 'volumes.datastore.name']
 	static final List<String> TAG_PROPS = ['id', 'metadata.name', 'metadata.value']
 	static final List<String> WORKLOAD_PROPS = ['id', 'server.id', 'account.id', 'instance.id', 'instance.account.id',
 												'instance.createdBy.id']
@@ -338,6 +339,7 @@ class HvmInfraSource implements InfraSource {
 			}
 			byServer.computeIfAbsent(id) { new TreeMap<Long, Map<String, Object>>() }
 				.putIfAbsent(diskId, [name: row['volumes.name'] ?: '', size: (row['volumes.maxStorage'] as Long) ?: 0L,
+										  storageId: row['volumes.datastore.id'] as Long,
 										  storage: row['volumes.datastore.name'] ?: null].findAll { it.value != null })
 		}
 		return byServer.collectEntries { Long id, Map<Long, Map<String, Object>> disks -> [(id): disks.values() as List] }
@@ -357,6 +359,41 @@ class HvmInfraSource implements InfraSource {
 					accessPolicy.canSeeTenant(user, it['owner.id'] as Long)
 			}
 		return InfraNode.sortByName(datastores.collect { toDatastoreNode(it) })
+	}
+
+	@Override
+	Map<Long, List<InfraNode>> listDatastoreVms(User user, Long clusterId) {
+		if (findCluster(user, clusterId) == null) {
+			return null
+		}
+		List<Map> hosts = servers(user, new DataQuery(user).withFilter('serverGroup.id', clusterId))
+			.findAll { (it['serverGroup.id'] as Long) == clusterId && isHost(user, it) }
+		Map<Long, Map> hostsById = hosts.collectEntries { [(it.id as Long): it] }
+		if (!hostsById) {
+			return [:]
+		}
+		List<Map> vms = servers(user, new DataQuery(user).withFilter('parentServer.id', 'in', hostsById.keySet() as List))
+			.findAll {
+				hostsById.containsKey(it['parentServer.id'] as Long) &&
+					accessPolicy.canSeeTenant(user, it['account.id'] as Long)
+			}
+		List<Long> vmIds = vms.collect { it.id as Long }
+		Map<Long, Map> instances = instancesByServer(user, vmIds)
+		Map<Long, List<Map<String, Object>>> disks = disksByServer(user, vmIds)
+		Map<Long, List<InfraNode>> result = [:]
+		vms.each { Map vm ->
+			Long id = vm.id as Long
+			Long hostId = vm['parentServer.id'] as Long
+			// One entry per datastore, with only the disks that lie there
+			(disks[id] ?: []).findAll { it.storageId != null }.groupBy { it.storageId as Long }.each { Long storeId, List<Map<String, Object>> onStore ->
+				InfraNode node = toVmNode(vm, hostId, instances[id])
+				node.hostName = hostsById[hostId].name
+				node.disks = onStore
+				node.storage = onStore.sum { (it.size as Long) ?: 0L } as Long ?: null
+				result.computeIfAbsent(storeId) { [] } << node
+			}
+		}
+		return result.collectEntries { Long storeId, List<InfraNode> nodes -> [(storeId): InfraNode.sortByName(nodes)] }
 	}
 
 	/**

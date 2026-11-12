@@ -119,7 +119,7 @@ class HvmInfraSourceSpec extends Specification {
 		managedVm.maxMemory = 16L * 1024 * 1024 * 1024
 		managedVm.volumes = [new StorageVolume(id: 902L, name: 'data', maxStorage: 200L * 1024 * 1024 * 1024),
 							 new StorageVolume(id: 901L, name: 'root', maxStorage: 50L * 1024 * 1024 * 1024,
-									  datastore: new DatastoreIdentity(name: 'cluster-store'))]
+									  datastore: new DatastoreIdentity(id: 14L, name: 'cluster-store'))]
 		discoveredVm.interfaces = [nic(null)]
 		vmA.interfaces = [nic(netOfB, '10.4.0.7'), nic(sharedNet, '10.5.0.7')]
 		returned[admin] = everything + [nestedVm]
@@ -646,6 +646,21 @@ class HvmInfraSourceSpec extends Specification {
 		vm.disks == null
 		vm.toJson().interfaces.size() == 2
 		!vm.toJson().containsKey('cores')
+	}
+
+	def "lists the VMs with a disk on a datastore, with only the disks there"() {
+		when:
+		Map<Long, List<InfraNode>> byStore = source.listDatastoreVms(admin, 1L)
+
+		then:
+		byStore.keySet() == [14L] as Set
+		byStore[14L]*.id == [30L]
+		with(byStore[14L][0]) {
+			hostName == 'host-1'
+			disks == [[name: 'root', size: 50L * 1024 * 1024 * 1024, storageId: 14L, storage: 'cluster-store']]
+			storage == 50L * 1024 * 1024 * 1024
+		}
+		source.listDatastoreVms(admin, 99L) == null
 	}
 
 	def "needs eight queries for the networks of a cluster"() {

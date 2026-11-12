@@ -75,6 +75,8 @@ rounded GB without unit, disks with unit (GB; from 1 TB with one decimal). Toolt
 decimals, total of the disks and one line per disk (name, size). The data comes from the plugin (`cores`, `memory`,
 `storage`, `disks` of the VM node, one extra query for the disks); the total comes from the disks, otherwise from the
 server's `maxStorage`. Values that are 0 or unknown are not shown; without any value the row has no resource part.
+Storage tab (requested 2026-11-12, 0.26.0): a datastore expands and lists the VMs with a disk on it (resources and
+tooltip limited to the disks there); shown only with server permission, otherwise the datastore stays a leaf.
 In the Networks tab the VM rows instead show the labels (`name`) of the VM's interfaces in that network; the tooltip lists
 per interface type, MAC address, addresses, DHCP and primary flag (requested 2026-11-12, 0.24.0; `interfaces` of the VM
 node, read with the interface query, columns `interfaces.name/macAddress/type.name/primaryInterface/dhcp` – verified on the

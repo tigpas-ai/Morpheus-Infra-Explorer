@@ -91,7 +91,19 @@ class InfraExplorerController implements PluginController {
 		handle(model, accessPolicy.canViewStorage(model.user)) { User user ->
 			Long clusterId = longParam(model, 'clusterId')
 			List<InfraNode> datastores = firstFound { it.listDatastores(user, clusterId) }
-			datastores == null ? null : [clusterId: clusterId, datastores: datastores*.toJson()]
+			if (datastores == null) {
+				return null
+			}
+			// The VMs on a datastore are only shown to users who may see servers
+			if (accessPolicy.canViewServers(user)) {
+				Map<Long, List<InfraNode>> vms = firstFound { it.listDatastoreVms(user, clusterId) } ?: [:]
+				datastores.each { store ->
+					store.vms = vms[store.id] ?: []
+					store.vms.each { it.actions = accessPolicy.vmActions(user, it) }
+					store.vmCount = store.vms.size()
+				}
+			}
+			[clusterId: clusterId, datastores: datastores*.toJson()]
 		}
 	}
 

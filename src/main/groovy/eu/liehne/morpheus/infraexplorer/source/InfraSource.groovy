@@ -59,6 +59,12 @@ interface InfraSource {
 	List<InfraNode> listDatastores(User user, Long clusterId)
 
 	/**
+	 * VMs of the cluster that have a disk on a datastore, by datastore id; each VM once per datastore, with only the
+	 * disks there ({@code disks}, {@code storage} = their total). {@code null} if the cluster is not visible.
+	 */
+	Map<Long, List<InfraNode>> listDatastoreVms(User user, Long clusterId)
+
+	/**
 	 * Networks of a cluster with the VMs of the cluster connected to them ({@code vms}, each VM once per network with
 	 * its {@code ipAddresses} there, and {@code vmCount}), sorted by name. A network belongs to the cluster if one of its
 	 * hosts carries it or a VM of the cluster is connected to it. VMs with an interface outside any visible network

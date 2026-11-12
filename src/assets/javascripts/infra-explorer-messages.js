@@ -37,6 +37,7 @@ window.InfraExplorerMessages = {
 		'empty.datastores': 'No datastores.',
 		'empty.networks': 'No networks.',
 		'empty.networkVms': 'No VMs in this network.',
+		'empty.datastoreVms': 'No VMs on this datastore.',
 		'empty.instances': 'No instances visible.',
 		'tag.unmanaged': '(unmanaged)',
 		'tag.maintenance': '(maintenance)',
@@ -87,6 +88,8 @@ window.InfraExplorerMessages = {
 		'nic.addresses': 'Addresses: {addresses}',
 		'nic.dhcp': 'DHCP',
 		'nic.primary': 'Primary interface',
+		'datastore.vmCount.one': '{count} VM with a disk on this datastore',
+		'datastore.vmCount.other': '{count} VMs with a disk on this datastore',
 		'network.vmCount.one': '{count} VM in this network',
 		'network.vmCount.other': '{count} VMs in this network',
 
@@ -232,6 +235,7 @@ window.InfraExplorerMessages = {
 		'empty.datastores': 'Keine Datastores.',
 		'empty.networks': 'Keine Netzwerke.',
 		'empty.networkVms': 'Keine VMs in diesem Netzwerk.',
+		'empty.datastoreVms': 'Keine VMs auf diesem Datastore.',
 		'empty.instances': 'Keine Instanzen sichtbar.',
 		'tag.unmanaged': '(nicht verwaltet)',
 		'tag.maintenance': '(Wartung)',
@@ -282,6 +286,8 @@ window.InfraExplorerMessages = {
 		'nic.addresses': 'Adressen: {addresses}',
 		'nic.dhcp': 'DHCP',
 		'nic.primary': 'Primäre Schnittstelle',
+		'datastore.vmCount.one': '{count} VM mit einer Platte auf diesem Datastore',
+		'datastore.vmCount.other': '{count} VMs mit einer Platte auf diesem Datastore',
 		'network.vmCount.one': '{count} VM in diesem Netzwerk',
 		'network.vmCount.other': '{count} VMs in diesem Netzwerk',
 
