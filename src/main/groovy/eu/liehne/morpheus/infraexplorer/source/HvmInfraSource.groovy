@@ -45,7 +45,9 @@ class HvmInfraSource implements InfraSource {
 	 * One row per address of each interface of a server (left join: an interface without address gives one row with
 	 * {@code null}). The interface has no address column of its own; {@code interfaces.ipAddress} empties the query.
 	 */
-	static final List<String> INTERFACE_PROPS = ['id', 'interfaces.id', 'interfaces.network.id', 'interfaces.addresses.address']
+	static final List<String> INTERFACE_PROPS = ['id', 'interfaces.id', 'interfaces.network.id', 'interfaces.name',
+												 'interfaces.macAddress', 'interfaces.type.name', 'interfaces.primaryInterface',
+												 'interfaces.dhcp', 'interfaces.addresses.address']
 	static final List<String> NETWORK_PROPS = ['id', 'name', 'status', 'active', 'vlanId', 'cidr', 'cidrIPv6', 'type.name',
 											   'owner.id', 'visibility']
 	/** One row per location (host or cloud) of a network */
@@ -374,8 +376,8 @@ class HvmInfraSource implements InfraSource {
 					accessPolicy.canSeeTenant(user, it['account.id'] as Long)
 			}
 		List<Long> vmIds = vms.collect { it.id as Long }
-		// server id → network id (null: interface without network) → addresses
-		Map<Long, Map<Long, Set<String>>> attached = interfacesByServer(user, vmIds)
+		// server id → network id (null: interface without network) → interfaces
+		Map<Long, Map<Long, List<Map<String, Object>>>> attached = interfacesByServer(user, vmIds)
 
 		Map<Long, Map> networks = visibleNetworks(user)
 		Set<Long> carried = networksOnHosts(user, networks.keySet() as List, hostsById.keySet())
@@ -383,26 +385,24 @@ class HvmInfraSource implements InfraSource {
 		List<Long> networkIds = networks.keySet().findAll { it in carried || it in used } as List
 		Map<Long, List<Map<String, Object>>> subnets = subnetsByNetwork(user, networkIds)
 		Map<Long, Map> instances = instancesByServer(user, vmIds)
-		Map<Long, List<Map<String, Object>>> disks = disksByServer(user, vmIds)
 
 		Map<Long, List<InfraNode>> vmsByNetwork = [:]
 		List<InfraNode> unattached = []
 		vms.each { Map vm ->
 			Long id = vm.id as Long
 			Long hostId = vm['parentServer.id'] as Long
-			Map<Long, Set<String>> byNetwork = attached[id] ?: [:]
+			Map<Long, List<Map<String, Object>>> byNetwork = attached[id] ?: [:]
 			// Interfaces in networks that are not shown (none, or not visible) put the VM into the extra node once
 			boolean outside = !byNetwork || byNetwork.keySet().any { !(it in networkIds) }
-			byNetwork.findAll { it.key in networkIds }.each { Long networkId, Set<String> addresses ->
-				InfraNode node = toVmNode(vm, hostId, instances[id], disks[id])
+			byNetwork.findAll { it.key in networkIds }.each { Long networkId, List<Map<String, Object>> nics ->
+				InfraNode node = toNetworkVmNode(vm, hostId, instances[id], nics)
 				node.hostName = hostsById[hostId].name
-				node.ipAddresses = addresses.sort()
 				vmsByNetwork.computeIfAbsent(networkId) { [] } << node
 			}
 			if (outside) {
-				InfraNode node = toVmNode(vm, hostId, instances[id], disks[id])
+				InfraNode node = toNetworkVmNode(vm, hostId, instances[id],
+					byNetwork.findAll { !(it.key in networkIds) }.values().flatten() as List<Map<String, Object>>)
 				node.hostName = hostsById[hostId].name
-				node.ipAddresses = (byNetwork.findAll { !(it.key in networkIds) }.values().flatten() as Set<String>).sort()
 				unattached << node
 			}
 		}
@@ -420,29 +420,43 @@ class HvmInfraSource implements InfraSource {
 	}
 
 	/**
-	 * Network id → addresses per server (all addresses of the interfaces in that network). Interfaces without network
-	 * are kept under the key {@code null}, so their VMs are not lost.
+	 * Per server: network id → its interfaces there as {@code {name, macAddress, type, primary, dhcp, addresses}}, in
+	 * the order of the interface ids. Interfaces without network are kept under the key {@code null}, so their VMs are
+	 * not lost.
 	 */
-	private Map<Long, Map<Long, Set<String>>> interfacesByServer(User user, List<Long> serverIds) {
+	private Map<Long, Map<Long, List<Map<String, Object>>>> interfacesByServer(User user, List<Long> serverIds) {
 		if (!serverIds) {
 			return [:]
 		}
 		DataQuery query = new DataQuery(user).withFilter('id', 'in', serverIds)
-		Map<Long, Map<Long, Set<String>>> result = [:]
-		// One row per address: look up in a set
+		// One row per address: collect them per interface
+		Map<Long, Map<Long, Map<String, Object>>> byServer = [:]
+		Map<Long, Long> networkOfInterface = [:]
 		Set<Long> wanted = serverIds as Set
 		rows(morpheus.services.computeServer, query, INTERFACE_PROPS).each { Map row ->
 			Long id = row.id as Long
-			if (!(id in wanted) || row['interfaces.id'] == null) {
+			Long nicId = row['interfaces.id'] as Long
+			if (!(id in wanted) || nicId == null) {
 				return
 			}
-			Set<String> addresses = result.computeIfAbsent(id) { [:] }
-				.computeIfAbsent(row['interfaces.network.id'] as Long) { [] as Set }
+			Map<String, Object> nic = byServer.computeIfAbsent(id) { new TreeMap<Long, Map<String, Object>>() }
+				.computeIfAbsent(nicId) {
+					networkOfInterface[nicId] = row['interfaces.network.id'] as Long
+					[name: row['interfaces.name'] ?: null, macAddress: row['interfaces.macAddress'] ?: null,
+					 type: row['interfaces.type.name'] ?: null, primary: row['interfaces.primaryInterface'] as Boolean,
+					 dhcp: row['interfaces.dhcp'] as Boolean, addresses: new TreeSet<String>()]
+				}
 			if (row['interfaces.addresses.address']) {
-				addresses << row['interfaces.addresses.address'].toString()
+				(nic.addresses as Set<String>) << row['interfaces.addresses.address'].toString()
 			}
 		}
-		return result
+		return byServer.collectEntries { Long id, Map<Long, Map<String, Object>> nics ->
+			Map<Long, List<Map<String, Object>>> byNetwork = [:]
+			nics.each { Long nicId, Map<String, Object> nic ->
+				byNetwork.computeIfAbsent(networkOfInterface[nicId]) { [] } << (nic + [addresses: (nic.addresses as List)])
+			}
+			[(id): byNetwork]
+		}
 	}
 
 	/**
@@ -539,6 +553,17 @@ class HvmInfraSource implements InfraSource {
 		new InfraNode(id: host.id as Long, name: host.name, status: host.status?.toString(),
 			powerState: host.powerState?.toString(), type: host['computeServerType.code'], clusterId: clusterId,
 			maintenance: host.maintenanceMode as Boolean, url: serverUrl(host))
+	}
+
+	/** A VM below a network: no resources, but its interfaces there with their addresses */
+	private static InfraNode toNetworkVmNode(Map vm, Long hostId, Map workload, List<Map<String, Object>> nics) {
+		InfraNode node = toVmNode(vm, hostId, workload)
+		node.cores = null
+		node.memory = null
+		node.storage = null
+		node.interfaces = nics
+		node.ipAddresses = nics.collectMany { it.addresses as List<String> }.unique().sort()
+		return node
 	}
 
 	private static InfraNode toVmNode(Map vm, Long hostId, Map workload, List<Map<String, Object>> disks = null) {

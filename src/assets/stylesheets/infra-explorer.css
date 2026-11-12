@@ -532,7 +532,8 @@
 
 /* VLAN and IP networks of a network, addresses of a VM in a network: shortened first when space is short */
 .ie-net,
-.ie-ips {
+.ie-ips,
+.ie-nics {
 	flex: 0 1 auto;
 	min-width: 0;
 	margin-left: 8px;

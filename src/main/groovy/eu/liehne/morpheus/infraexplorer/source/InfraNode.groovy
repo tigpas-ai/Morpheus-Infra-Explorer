@@ -67,6 +67,8 @@ class InfraNode {
 	Integer vmCount
 	/** VMs below a network only: addresses of the VM's interfaces in this network */
 	List<String> ipAddresses
+	/** VMs below a network only: the interfaces in this network as {name, macAddress, type, primary, dhcp, addresses} */
+	List<Map<String, Object>> interfaces
 
 	Map<String, Object> toJson() {
 		[id: id, name: name, status: status, powerState: powerState, type: type,
@@ -74,7 +76,7 @@ class InfraNode {
 		 online: online, hostName: hostName, tenantId: tenantId, tenant: tenant, folders: folders, instanceUrl: instanceUrl,
 		 maintenance: maintenance, actions: actions, vlanId: vlanId, cidr: cidr, cidrIPv6: cidrIPv6, subnets: subnets,
 		 vmCount: vmCount, vms: vms?.collect { it.toJson() }, ipAddresses: ipAddresses, cores: cores, memory: memory,
-		 storage: storage, disks: disks].findAll { it.value != null }
+		 storage: storage, disks: disks, interfaces: interfaces].findAll { it.value != null }
 	}
 
 	/** Sorts in place by name, case-insensitive; nodes without name first. */

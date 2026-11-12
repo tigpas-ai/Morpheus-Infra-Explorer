@@ -1526,6 +1526,26 @@
 		return box;
 	}
 
+	// VM below a network: labels of its interfaces in this network, the tooltip lists the details of each interface
+	function networkInterfaces(node) {
+		var nics = node.interfaces || [];
+		var labels = nics.map(function (nic) { return nic.name; }).filter(Boolean);
+		if (!nics.length) {
+			return null;
+		}
+		var box = el('span', 'ie-sub ie-nics', labels.join(', '));
+		box.title = nics.map(function (nic, index) {
+			var lines = [nic.name ? t('nic.name', { name: nic.name }) : t('nic.unnamed', { number: index + 1 })];
+			if (nic.type) { lines.push('  ' + t('nic.type', { type: nic.type })); }
+			if (nic.macAddress) { lines.push('  ' + t('nic.mac', { mac: nic.macAddress })); }
+			if ((nic.addresses || []).length) { lines.push('  ' + t('nic.addresses', { addresses: nic.addresses.join(', ') })); }
+			if (nic.dhcp === true) { lines.push('  ' + t('nic.dhcp')); }
+			if (nic.primary === true) { lines.push('  ' + t('nic.primary')); }
+			return lines.join('\n');
+		}).join('\n');
+		return box;
+	}
+
 	// Running VMs with console permission: the dot is a link that opens the console (same window as the menu entry)
 	function powerBadge(state, node) {
 		var known = POWER_STATES.indexOf(state) !== -1;
@@ -1771,6 +1791,10 @@
 			ips.title = t('network.addresses', { addresses: addresses.join(', ') });
 			row.appendChild(ips);
 		}
+		var nics = addresses ? networkInterfaces(node) : null;
+		if (nics) {
+			row.appendChild(nics);
+		}
 		if (kind === 'network') {
 			networkRow(row, node);
 		}
@@ -1784,7 +1808,7 @@
 			host.title = t('tree.host', { name: node.hostName });
 			row.appendChild(host);
 		}
-		var config = kind === 'vm' ? vmConfig(node) : null;
+		var config = kind === 'vm' && !addresses ? vmConfig(node) : null;
 		if (config) {
 			row.appendChild(config);
 		}

@@ -275,6 +275,13 @@ class InfraExplorerIntegrationSpec extends Specification {
 		Map networks = networksResult.json() as Map
 		assert networks.clusterId == id
 		assert networks.networks.every { it.id != null && it.name && it.vms instanceof List && it.vmCount == it.vms.size() }
+		// VMs below a network list their interfaces there (columns of the interface query) and no resources
+		networks.networks.each { net ->
+			net.vms.each { vm ->
+				assert vm.interfaces instanceof List && !vm.containsKey('cores') && !vm.containsKey('disks')
+				assert vm.ipAddresses.every { ip -> vm.interfaces.any { it.addresses?.contains(ip) } }
+			}
+		}
 
 		log "cluster ${cluster.name}: ${hosts.hosts.size()} host(s), ${datastores.size()} datastore(s), " +
 			"${networks.networks.size()} network(s)"

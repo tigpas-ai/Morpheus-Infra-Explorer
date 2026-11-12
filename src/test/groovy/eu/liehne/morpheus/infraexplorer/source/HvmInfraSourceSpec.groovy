@@ -13,6 +13,7 @@ import com.morpheusdata.core.synchronous.network.MorpheusSynchronousNetworkServi
 import com.morpheusdata.model.Account
 import com.morpheusdata.model.ComputeServer
 import com.morpheusdata.model.ComputeServerInterface
+import com.morpheusdata.model.ComputeServerInterfaceType
 import com.morpheusdata.model.ComputeServerGroup
 import com.morpheusdata.model.ComputeServerGroupType
 import com.morpheusdata.model.ComputeServerType
@@ -111,6 +112,8 @@ class HvmInfraSourceSpec extends Specification {
 		// Two interfaces in the same network (one VM, two addresses there), one in a network no host carries
 		managedVm.interfaces = [nic(netA, '10.0.0.5', 'fe80::5'), nic(netA, '10.0.0.6'), nic(netB, '172.16.0.5'),
 								nic(inactiveNet, '10.1.0.5')]
+		managedVm.interfaces[0].with { name = 'eth0'; macAddress = '52:54:00:00:00:01'; primaryInterface = true; dhcp = false
+									   type = new ComputeServerInterfaceType(name: 'VirtIO') }
 		managedVm.maxCores = 4L
 		managedVm.maxMemory = 16L * 1024 * 1024 * 1024
 		managedVm.volumes = [new StorageVolume(id: 902L, name: 'data', maxStorage: 200L * 1024 * 1024 * 1024),
@@ -628,12 +631,26 @@ class HvmInfraSourceSpec extends Specification {
 		!bare.toJson().containsKey('disks')
 	}
 
-	def "needs nine queries for the networks of a cluster"() {
+	def "VMs below a network carry their interfaces there instead of the resources"() {
+		when:
+		InfraNode vm = source.listNetworks(admin, 1L)[0].vms[0]
+
+		then:
+		vm.interfaces*.addresses == [['10.0.0.5', 'fe80::5'], ['10.0.0.6']]
+		vm.interfaces[0].subMap(['name', 'macAddress', 'type', 'primary', 'dhcp']) ==
+			[name: 'eth0', macAddress: '52:54:00:00:00:01', type: 'VirtIO', primary: true, dhcp: false]
+		vm.cores == null
+		vm.disks == null
+		vm.toJson().interfaces.size() == 2
+		!vm.toJson().containsKey('cores')
+	}
+
+	def "needs eight queries for the networks of a cluster"() {
 		when:
 		source.listNetworks(admin, 1L)
 
 		then:
-		queries.size() == 9
+		queries.size() == 8
 		queries.every { it.user.is(admin) }
 	}
 

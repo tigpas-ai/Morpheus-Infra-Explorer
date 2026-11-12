@@ -3,6 +3,11 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.24.0 – 2026-11-12
+- The resources (vCPUs, memory, disks) are shown only in the Clusters and Instances tabs. In the Networks tab the VM
+  rows show the labels of the VM's interfaces in that network instead; the tooltip has the details per interface
+  (type, MAC address, addresses, DHCP, primary). Interface 0.18.0: new optional `interfaces` on VMs of networks.
+
 ## 0.23.0 – 2026-11-12
 - VM rows show the configured resources (not the usage) in a compact form: vCPUs, memory in rounded GB and the total
   disk size (GB, from 1 TB with one decimal), each with a small symbol. The tooltip has the details: memory with up to
