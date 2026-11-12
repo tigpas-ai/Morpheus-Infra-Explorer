@@ -4,6 +4,7 @@ All notable changes to this plugin. The interface (endpoints, options, data form
 [`CONTRACT.md`](CONTRACT.md).
 
 ## 0.25.0 – 2026-11-12
+- Networks tab: each interface label has its own tooltip with the details of that interface.
 - The tooltip of the resources shows the storage of each disk: `(Storage) Name: Size`. Interface 0.19.0: new optional
   `storage` in the `disks` entries.
 

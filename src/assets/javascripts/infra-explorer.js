@@ -1530,20 +1530,24 @@
 	// VM below a network: labels of its interfaces in this network, the tooltip lists the details of each interface
 	function networkInterfaces(node) {
 		var nics = node.interfaces || [];
-		var labels = nics.map(function (nic) { return nic.name; }).filter(Boolean);
 		if (!nics.length) {
 			return null;
 		}
-		var box = el('span', 'ie-sub ie-nics', labels.join(', '));
-		box.title = nics.map(function (nic, index) {
+		var box = el('span', 'ie-sub ie-nics');
+		nics.forEach(function (nic, index) {
+			if (index) {
+				box.appendChild(document.createTextNode(', '));
+			}
+			var label = el('span', 'ie-nic', nic.name || t('nic.unnamed', { number: index + 1 }));
 			var lines = [nic.name ? t('nic.name', { name: nic.name }) : t('nic.unnamed', { number: index + 1 })];
-			if (nic.type) { lines.push('  ' + t('nic.type', { type: nic.type })); }
-			if (nic.macAddress) { lines.push('  ' + t('nic.mac', { mac: nic.macAddress })); }
-			if ((nic.addresses || []).length) { lines.push('  ' + t('nic.addresses', { addresses: nic.addresses.join(', ') })); }
-			if (nic.dhcp === true) { lines.push('  ' + t('nic.dhcp')); }
-			if (nic.primary === true) { lines.push('  ' + t('nic.primary')); }
-			return lines.join('\n');
-		}).join('\n');
+			if (nic.type) { lines.push(t('nic.type', { type: nic.type })); }
+			if (nic.macAddress) { lines.push(t('nic.mac', { mac: nic.macAddress })); }
+			if ((nic.addresses || []).length) { lines.push(t('nic.addresses', { addresses: nic.addresses.join(', ') })); }
+			if (nic.dhcp === true) { lines.push(t('nic.dhcp')); }
+			if (nic.primary === true) { lines.push(t('nic.primary')); }
+			label.title = lines.join('\n');
+			box.appendChild(label);
+		});
 		return box;
 	}
 
