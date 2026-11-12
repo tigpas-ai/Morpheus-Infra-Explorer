@@ -556,7 +556,19 @@
 .ie-nics {
 	flex: 0 1 auto;
 	min-width: 0;
-	margin-left: 8px;
+	margin-left: auto;
+}
+
+/* VM below a network: addresses, interface labels, host and power dot are anchored on the right */
+.ie-ips + .ie-nics,
+.ie-ips + .ie-host,
+.ie-nics + .ie-host {
+	margin-left: 10px;
+}
+
+.ie-nics {
+	min-width: 4em;
+	text-align: right;
 }
 
 .ie-net + .ie-meta {
@@ -920,6 +932,7 @@
 /* Fixed widths, so host and resources of all rows stand in columns */
 .ie-host {
 	width: 7em;
+	text-align: right;
 }
 
 .ie-config-cpu {
