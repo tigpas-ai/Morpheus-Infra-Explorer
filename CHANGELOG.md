@@ -11,7 +11,7 @@ All notable changes to this plugin. The interface (endpoints, options, data form
 - The green power dot of a running VM opens its console (with the Remote Console permission).
 - Dragging a VM near the top or bottom edge of the list scrolls it, faster closer to the edge.
 - Three seconds after the pointer has left the overlay, the panel fades gradually (over 3 s) to half transparent; it
-  is opaque again as soon as the pointer is back.
+  is opaque again as soon as the pointer is back. A panel that opens again on a new page starts half transparent.
 
 ## 0.21.0 – 2026-11-08
 - Storage view: the host tooltip of the path state names the reason when a host is down despite active paths

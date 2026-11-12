@@ -2748,6 +2748,10 @@
 			}
 		}
 		updateFade();
+		if (open && options.restore && !pointerInside) {
+			// Opened again without the user: half transparent right away (no pointer over it), opaque on pointer enter
+			panel.classList.add('ie-faded');
+		}
 	}
 
 	// --- Fading while the pointer is outside ---

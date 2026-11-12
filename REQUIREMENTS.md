@@ -82,6 +82,8 @@ Fading (requested 2026-11-11, implemented in 0.22.0): 3 s after the pointer has 
 dialogs), the panel fades gradually over 3 s to half transparent (opacity 0.5) and turns opaque again within 0.2 s
 when the pointer is back; not while a VM is dragged or the
 keyboard focus is visibly in the panel; touch input does not fade it. It stays usable while faded.
+A panel opened again on a new page (or after a Morpheus dialog) is half transparent right away, without a delay, until
+the pointer is over it (requested 2026-11-12).
 
 Path state of shared storage (requested 2026-10-31, implemented in 0.19.0): in the storage view each shared datastore shows
 per node whether all storage paths are up (✅, muted), some are down (⚠️) or none is up (❌), e.g. `Nodes: 1 ✅, 2 ⚠️`.
