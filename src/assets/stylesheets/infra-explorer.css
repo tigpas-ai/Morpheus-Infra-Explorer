@@ -913,8 +913,25 @@
 	stroke-linejoin: round;
 }
 
-.ie-host + .ie-config {
-	margin-left: 8px;
+.ie-config + .ie-host {
+	margin-left: 10px;
+}
+
+/* Fixed widths, so host and resources of all rows stand in columns */
+.ie-host {
+	width: 7em;
+}
+
+.ie-config-cpu {
+	min-width: 34px;
+}
+
+.ie-config-ram {
+	min-width: 40px;
+}
+
+.ie-config-disk {
+	min-width: 56px;
 }
 
 .ie-config + .ie-power {

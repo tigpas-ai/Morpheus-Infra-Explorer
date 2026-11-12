@@ -1483,7 +1483,7 @@
 	}
 
 	function configItem(icon, text) {
-		var item = el('span', 'ie-config-item');
+		var item = el('span', 'ie-config-item ie-config-' + icon);
 		var svg = document.createElementNS(SVG_NS, 'svg');
 		svg.setAttribute('viewBox', '0 0 16 16');
 		svg.setAttribute('class', 'ie-config-icon');
@@ -1827,14 +1827,15 @@
 			maintenanceTag.hidden = !(hostMaintenance.hasOwnProperty(node.id) ? hostMaintenance[node.id] : node.maintenance);
 			row.appendChild(maintenanceTag);
 		}
+		// From the right: power dot, host, then the resources
+		var config = kind === 'vm' && !addresses ? vmConfig(node, onStore) : null;
+		if (config) {
+			row.appendChild(config);
+		}
 		if (node.hostName) {
 			var host = el('span', 'ie-host', node.hostName);
 			host.title = t('tree.host', { name: node.hostName });
 			row.appendChild(host);
-		}
-		var config = kind === 'vm' && !addresses ? vmConfig(node, onStore) : null;
-		if (config) {
-			row.appendChild(config);
 		}
 		if (node.powerState) {
 			row.appendChild(powerBadge(vmPower[node.id] || node.powerState, kind === 'vm' ? node : null));
