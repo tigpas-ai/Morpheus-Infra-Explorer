@@ -476,6 +476,26 @@
 	padding: 3px 0;
 }
 
+.ie-toggle-caret {
+	flex: none;
+	width: 12px;
+	margin-left: 4px;
+	padding: 0;
+	justify-content: center;
+}
+
+.ie-name-toggle {
+	cursor: pointer;
+}
+
+/* Fixed width, so the usage bars of all datastores end at the same place */
+.ie-node-datastore > .ie-row > .ie-count {
+	flex: none;
+	margin-left: 0;
+	min-width: 2.5em;
+	text-align: right;
+}
+
 .ie-stack {
 	display: flex;
 	flex-direction: column;

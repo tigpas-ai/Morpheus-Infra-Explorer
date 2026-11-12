@@ -1897,17 +1897,19 @@
 		var level = node.vms && node.clusterId != null ? LEVELS.datastore : null;
 		if (level) {
 			item.dataset.ieKey = 'datastore:' + encodeURIComponent(String(node.id));
+			// The caret takes the place of the leaf spacer, so the rows stay aligned with the other datastores
 			row.replaceChildren();
-			var toggle = el('button', 'ie-toggle');
+			var toggle = el('button', 'ie-toggle ie-toggle-caret');
 			toggle.type = 'button';
 			toggle.setAttribute('aria-expanded', 'false');
 			toggle.setAttribute('aria-label', t('tree.expand', { name: node.name }));
 			toggle.appendChild(el('span', 'ie-caret'));
-			toggle.appendChild(el('span', 'ie-name', node.name));
-			toggle.addEventListener('click', function () {
-				toggleNode(item, toggle, level, node);
-			});
-			text.appendChild(toggle);
+			var open = function () { toggleNode(item, toggle, level, node); };
+			toggle.addEventListener('click', open);
+			row.appendChild(toggle);
+			var title = el('span', 'ie-name ie-name-toggle', node.name);
+			title.addEventListener('click', open);
+			text.appendChild(title);
 		} else {
 			text.appendChild(nodeLabel(node));
 		}
@@ -1928,7 +1930,7 @@
 			row.appendChild(bar);
 		}
 		if (level) {
-			var count = el('span', 'ie-meta', formatNumber(node.vmCount || 0));
+			var count = el('span', 'ie-meta ie-count', formatNumber(node.vmCount || 0));
 			count.title = tn('datastore.vmCount', node.vmCount || 0);
 			row.appendChild(count);
 		}

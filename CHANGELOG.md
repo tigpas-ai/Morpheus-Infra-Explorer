@@ -4,6 +4,8 @@ All notable changes to this plugin. The interface (endpoints, options, data form
 [`CONTRACT.md`](CONTRACT.md).
 
 ## 0.27.0 – 2026-11-12
+- Storage tab: expandable datastores keep the caret in the leaf column and the VM count in a fixed column, so names and
+  usage bars line up again.
 - Storage tab: the VM rows show no vCPUs and memory, only the disks on that datastore as `really used / configured`
   (thin provisioning), also per disk in the tooltip. Interface 0.21.0: new optional `used` in the `disks` entries.
 
