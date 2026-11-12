@@ -1496,9 +1496,10 @@
 		return item;
 	}
 
-	function vmConfig(node) {
-		var hasCores = typeof node.cores === 'number' && node.cores > 0;
-		var hasMemory = typeof node.memory === 'number' && node.memory > 0;
+	// onStore: VM row below a datastore – only the disks there, with the space really used next to the configured size
+	function vmConfig(node, onStore) {
+		var hasCores = !onStore && typeof node.cores === 'number' && node.cores > 0;
+		var hasMemory = !onStore && typeof node.memory === 'number' && node.memory > 0;
 		var hasStorage = typeof node.storage === 'number' && node.storage > 0;
 		if (!hasCores && !hasMemory && !hasStorage) {
 			return null;
@@ -1514,10 +1515,17 @@
 			lines.push(t('config.memory', { size: formatNumber(node.memory / GIB, { maximumFractionDigits: 2 }) + ' GB' }));
 		}
 		if (hasStorage) {
-			box.appendChild(configItem('disk', formatDiskSize(node.storage, false)));
+			var disks = node.disks || [];
+			var allUsed = disks.length > 0 && disks.every(function (disk) { return typeof disk.used === 'number'; });
+			var usedTotal = disks.reduce(function (sum, disk) { return sum + (disk.used || 0); }, 0);
+			var total = formatDiskSize(node.storage, false);
+			box.appendChild(configItem('disk', onStore && allUsed ? formatBytes(usedTotal) + ' / ' + total : total));
 			lines.push(t('config.storage', { size: formatDiskSize(node.storage, true) }));
-			(node.disks || []).forEach(function (disk, index) {
+			disks.forEach(function (disk, index) {
 				var size = formatDiskSize(disk.size || 0, true);
+				if (onStore && typeof disk.used === 'number') {
+					size = formatBytes(disk.used) + ' / ' + size;
+				}
 				var diskLine = disk.name ? t('config.disk', { name: disk.name, size: size })
 					: t('config.diskUnnamed', { number: index + 1, size: size });
 				lines.push('  ' + (disk.storage ? '(' + disk.storage + ') ' : '') + diskLine);
@@ -1773,7 +1781,8 @@
 		}
 		// VMs below a network are VM rows (power updates, menu) with their addresses in that network
 		var addresses = kind === 'networkVm' ? node.ipAddresses || [] : null;
-		if (addresses || kind === 'datastoreVm') {
+		var onStore = kind === 'datastoreVm';
+		if (addresses || onStore) {
 			kind = 'vm';
 		}
 		var item = el('li', 'ie-node ie-node-' + kind);
@@ -1823,7 +1832,7 @@
 			host.title = t('tree.host', { name: node.hostName });
 			row.appendChild(host);
 		}
-		var config = kind === 'vm' && !addresses ? vmConfig(node) : null;
+		var config = kind === 'vm' && !addresses ? vmConfig(node, onStore) : null;
 		if (config) {
 			row.appendChild(config);
 		}

@@ -118,7 +118,7 @@ class HvmInfraSourceSpec extends Specification {
 		managedVm.maxCores = 4L
 		managedVm.maxMemory = 16L * 1024 * 1024 * 1024
 		managedVm.volumes = [new StorageVolume(id: 902L, name: 'data', maxStorage: 200L * 1024 * 1024 * 1024),
-							 new StorageVolume(id: 901L, name: 'root', maxStorage: 50L * 1024 * 1024 * 1024,
+							 new StorageVolume(id: 901L, name: 'root', maxStorage: 50L * 1024 * 1024 * 1024, usedStorage: 3L * 1024 * 1024 * 1024,
 									  datastore: new DatastoreIdentity(id: 14L, name: 'cluster-store'))]
 		discoveredVm.interfaces = [nic(null)]
 		vmA.interfaces = [nic(netOfB, '10.4.0.7'), nic(sharedNet, '10.5.0.7')]
@@ -657,7 +657,9 @@ class HvmInfraSourceSpec extends Specification {
 		byStore[14L]*.id == [30L]
 		with(byStore[14L][0]) {
 			hostName == 'host-1'
-			disks == [[name: 'root', size: 50L * 1024 * 1024 * 1024, storageId: 14L, storage: 'cluster-store']]
+			disks == [[name: 'root', size: 50L * 1024 * 1024 * 1024, used: 3L * 1024 * 1024 * 1024, storageId: 14L, storage: 'cluster-store']]
+			cores == null
+			memory == null
 			storage == 50L * 1024 * 1024 * 1024
 		}
 		source.listDatastoreVms(admin, 99L) == null

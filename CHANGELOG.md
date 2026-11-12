@@ -3,6 +3,10 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.27.0 – 2026-11-12
+- Storage tab: the VM rows show no vCPUs and memory, only the disks on that datastore as `really used / configured`
+  (thin provisioning), also per disk in the tooltip. Interface 0.21.0: new optional `used` in the `disks` entries.
+
 ## 0.26.0 – 2026-11-12
 - Storage tab: datastores expand and show the VMs that have a disk on them (for users who may see servers); the resources
   of such a VM row and its tooltip cover only its disks on that datastore. Interface 0.20.0: `vms` and `vmCount` per
