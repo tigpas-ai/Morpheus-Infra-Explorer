@@ -1474,12 +1474,23 @@
 		disk: 'M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2zM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2'
 	};
 
-	// Disk sizes: GB, one decimal from one TB on (up to two decimals in the tooltip where needed)
+	// Sizes in the rows: GB without decimals, from one TB always one decimal. The tooltip (precise) shows from one GB one
+	// decimal unless it is zero, from one TB always one decimal, below one GB up to two decimals.
 	function formatDiskSize(bytes, precise) {
 		if (bytes >= TIB) {
-			return formatNumber(bytes / TIB, { maximumFractionDigits: 1 }) + ' TB';
+			return formatNumber(bytes / TIB, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' TB';
 		}
-		return formatNumber(bytes / GIB, { maximumFractionDigits: precise ? 2 : 0 }) + ' GB';
+		var digits = !precise ? 0 : bytes >= GIB ? 1 : 2;
+		return formatNumber(bytes / GIB, { maximumFractionDigits: digits }) + ' GB';
+	}
+
+	// Really used space of a thin disk: below one GB in KB or MB, otherwise like the sizes above
+	function formatUsedSize(bytes, precise) {
+		if (bytes >= GIB) {
+			return formatDiskSize(bytes, precise);
+		}
+		return bytes >= 1024 * 1024 ? formatNumber(bytes / (1024 * 1024), { maximumFractionDigits: 0 }) + ' MB'
+			: formatNumber(bytes / 1024, { maximumFractionDigits: 0 }) + ' KB';
 	}
 
 	function configItem(icon, text) {
@@ -1512,19 +1523,19 @@
 		}
 		if (hasMemory) {
 			box.appendChild(configItem('ram', formatNumber(Math.max(1, Math.round(node.memory / GIB)))));
-			lines.push(t('config.memory', { size: formatNumber(node.memory / GIB, { maximumFractionDigits: 2 }) + ' GB' }));
+			lines.push(t('config.memory', { size: formatDiskSize(node.memory, true) }));
 		}
 		if (hasStorage) {
 			var disks = node.disks || [];
 			var allUsed = disks.length > 0 && disks.every(function (disk) { return typeof disk.used === 'number'; });
 			var usedTotal = disks.reduce(function (sum, disk) { return sum + (disk.used || 0); }, 0);
 			var total = formatDiskSize(node.storage, false);
-			box.appendChild(configItem('disk', onStore && allUsed ? formatBytes(usedTotal) + ' / ' + total : total));
+			box.appendChild(configItem('disk', onStore && allUsed ? formatUsedSize(usedTotal, false) + ' / ' + total : total));
 			lines.push(t('config.storage', { size: formatDiskSize(node.storage, true) }));
 			disks.forEach(function (disk, index) {
 				var size = formatDiskSize(disk.size || 0, true);
 				if (onStore && typeof disk.used === 'number') {
-					size = formatBytes(disk.used) + ' / ' + size;
+					size = formatUsedSize(disk.used, true) + ' / ' + size;
 				}
 				var diskLine = disk.name ? t('config.disk', { name: disk.name, size: size })
 					: t('config.diskUnnamed', { number: index + 1, size: size });

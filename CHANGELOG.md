@@ -4,6 +4,8 @@ All notable changes to this plugin. The interface (endpoints, options, data form
 [`CONTRACT.md`](CONTRACT.md).
 
 ## 0.27.0 – 2026-11-12
+- Sizes: in the rows GB without decimals and from 1 TB always one decimal; in the tooltip from 1 GB one decimal (omitted
+  when zero), from 1 TB always one decimal. Really used space below 1 GB in KB/MB.
 - Networks tab: addresses and interface labels are anchored on the right as well; the host name sits right next to the
   power dot.
 - VM rows: right-aligned in a fixed order, from the right power dot, host, resources; the resource values have
