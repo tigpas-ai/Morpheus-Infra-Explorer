@@ -3,7 +3,7 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
-## Unreleased
+## 0.23.0 – 2026-11-12
 - VMs with snapshots show a camera symbol with the number of snapshots; the tooltip lists their names (the
   really used size of the disks is unchanged and does not include the snapshot chain). Interface 0.18.0: new optional
   field `snapshots` of VM nodes.
