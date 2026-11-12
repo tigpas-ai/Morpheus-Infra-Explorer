@@ -441,14 +441,13 @@
 }
 
 /* Half transparent a while after the pointer left the overlay, unless the keyboard focus is in the panel:
-   fades out gradually, back to opaque quickly */
+   short fade in both directions (the script sets the same transition inline, see FADE_TRANSITION) */
 .ie-panel {
-	transition: opacity 0.2s ease-out;
+	transition: opacity 0.3s ease-out;
 }
 
 .ie-panel.ie-faded {
 	opacity: 0.5;
-	transition: opacity 3s linear;
 }
 
 .ie-panel.ie-faded:has(:focus-visible) {

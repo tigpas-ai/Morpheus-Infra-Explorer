@@ -78,9 +78,10 @@ list scrolls when the pointer is within 60 px of its top or bottom edge, faster 
 up to 24 px per frame); above or below the list (header, status line, outside the panel within its width) at full
 speed. Scrolling stops when the drag ends or no `dragover` arrives for 400 ms.
 
-Fading (requested 2026-11-11, implemented in 0.22.0): 3 s after the pointer has left the overlay (panel, its menus and
-dialogs), the panel fades gradually over 3 s to half transparent (opacity 0.5) and turns opaque again within 0.2 s
-when the pointer is back; not while a VM is dragged or the
+Fading (requested 2026-11-11, implemented in 0.22.0, timing changed 2026-11-12): 2 s after the pointer has left the
+overlay (panel, its menus and dialogs), the panel fades within 0.3 s to half transparent (opacity 0.5) and turns opaque
+again within 0.3 s when the pointer is back; the transition is also set inline with `!important`, because with the
+system setting "reduce motion" the Morpheus stylesheets force `transition: none`; not while a VM is dragged or the
 keyboard focus is visibly in the panel; touch input does not fade it. It stays usable while faded.
 A panel opened again on a new page (or after a Morpheus dialog) is half transparent right away, without a delay, until
 the pointer is over it (requested 2026-11-12).

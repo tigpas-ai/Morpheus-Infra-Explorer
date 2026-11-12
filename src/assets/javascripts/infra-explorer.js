@@ -2763,7 +2763,11 @@
 	// --- Fading while the pointer is outside ---
 	// FADE_DELAY_MS after the pointer has left the overlay (panel, its menus and dialogs), the panel turns half
 	// transparent until the pointer is back; never while a VM is dragged or the keyboard focus is in the panel (CSS)
-	var FADE_DELAY_MS = 3000;
+	var FADE_DELAY_MS = 2000;
+	// Set inline with !important: a user who asked the system for reduced motion gets "transition: none" from the
+	// Morpheus stylesheets, which would make the change abrupt; this is a short opacity change, not a movement
+	var FADE_TRANSITION = 'opacity 0.3s ease-out';
+	panel.style.setProperty('transition', FADE_TRANSITION, 'important');
 	var fadeTimer = null;
 	var pointerInside = false;
 
