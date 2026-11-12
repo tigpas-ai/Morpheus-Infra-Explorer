@@ -1460,6 +1460,72 @@
 		return t('error.loading', { error: error.message });
 	}
 
+	// Configured resources of a VM (not the usage): vCPUs, memory (rounded GB) and total disk size, each with a small
+	// symbol; the tooltip has the details, one line per disk
+	var GIB = 1024 * 1024 * 1024;
+	var TIB = GIB * 1024;
+	var SVG_NS = 'http://www.w3.org/2000/svg';
+	var CONFIG_ICONS = {
+		// chip: square with pins
+		cpu: 'M5 5h6v6H5zM7 2v3M9 2v3M7 11v3M9 11v3M2 7h3M2 9h3M11 7h3M11 9h3',
+		// memory module: bar with chips and contacts
+		ram: 'M1.5 4.5h13v6h-13zM4 10.5v2.5M7 10.5v2.5M10 10.5v2.5M13 10.5v2.5M4 7h2M8 7h2',
+		// disk: cylinder
+		disk: 'M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2zM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2'
+	};
+
+	// Disk sizes: GB, one decimal from one TB on (up to two decimals in the tooltip where needed)
+	function formatDiskSize(bytes, precise) {
+		if (bytes >= TIB) {
+			return formatNumber(bytes / TIB, { maximumFractionDigits: 1 }) + ' TB';
+		}
+		return formatNumber(bytes / GIB, { maximumFractionDigits: precise ? 2 : 0 }) + ' GB';
+	}
+
+	function configItem(icon, text) {
+		var item = el('span', 'ie-config-item');
+		var svg = document.createElementNS(SVG_NS, 'svg');
+		svg.setAttribute('viewBox', '0 0 16 16');
+		svg.setAttribute('class', 'ie-config-icon');
+		svg.setAttribute('aria-hidden', 'true');
+		var path = document.createElementNS(SVG_NS, 'path');
+		path.setAttribute('d', CONFIG_ICONS[icon]);
+		svg.appendChild(path);
+		item.appendChild(svg);
+		item.appendChild(document.createTextNode(text));
+		return item;
+	}
+
+	function vmConfig(node) {
+		var hasCores = typeof node.cores === 'number' && node.cores > 0;
+		var hasMemory = typeof node.memory === 'number' && node.memory > 0;
+		var hasStorage = typeof node.storage === 'number' && node.storage > 0;
+		if (!hasCores && !hasMemory && !hasStorage) {
+			return null;
+		}
+		var box = el('span', 'ie-config');
+		var lines = [];
+		if (hasCores) {
+			box.appendChild(configItem('cpu', formatNumber(node.cores)));
+			lines.push(tn('config.cores', node.cores));
+		}
+		if (hasMemory) {
+			box.appendChild(configItem('ram', formatNumber(Math.max(1, Math.round(node.memory / GIB)))));
+			lines.push(t('config.memory', { size: formatNumber(node.memory / GIB, { maximumFractionDigits: 2 }) + ' GB' }));
+		}
+		if (hasStorage) {
+			box.appendChild(configItem('disk', formatDiskSize(node.storage, false)));
+			lines.push(t('config.storage', { size: formatDiskSize(node.storage, true) }));
+			(node.disks || []).forEach(function (disk, index) {
+				var size = formatDiskSize(disk.size || 0, true);
+				lines.push('  ' + (disk.name ? t('config.disk', { name: disk.name, size: size })
+					: t('config.diskUnnamed', { number: index + 1, size: size })));
+			});
+		}
+		box.title = lines.join('\n');
+		return box;
+	}
+
 	// Running VMs with console permission: the dot is a link that opens the console (same window as the menu entry)
 	function powerBadge(state, node) {
 		var known = POWER_STATES.indexOf(state) !== -1;
@@ -1717,6 +1783,10 @@
 			var host = el('span', 'ie-host', node.hostName);
 			host.title = t('tree.host', { name: node.hostName });
 			row.appendChild(host);
+		}
+		var config = kind === 'vm' ? vmConfig(node) : null;
+		if (config) {
+			row.appendChild(config);
 		}
 		if (node.powerState) {
 			row.appendChild(powerBadge(vmPower[node.id] || node.powerState, kind === 'vm' ? node : null));

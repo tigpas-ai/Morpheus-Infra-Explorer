@@ -25,6 +25,7 @@ import com.morpheusdata.model.Network
 import com.morpheusdata.model.NetworkLocation
 import com.morpheusdata.model.NetworkSubnet
 import com.morpheusdata.model.NetworkType
+import com.morpheusdata.model.StorageVolume
 import com.morpheusdata.model.User
 import com.morpheusdata.model.Workload
 import com.morpheusdata.model.projection.ComputeServerIdentityProjection
@@ -110,6 +111,10 @@ class HvmInfraSourceSpec extends Specification {
 		// Two interfaces in the same network (one VM, two addresses there), one in a network no host carries
 		managedVm.interfaces = [nic(netA, '10.0.0.5', 'fe80::5'), nic(netA, '10.0.0.6'), nic(netB, '172.16.0.5'),
 								nic(inactiveNet, '10.1.0.5')]
+		managedVm.maxCores = 4L
+		managedVm.maxMemory = 16L * 1024 * 1024 * 1024
+		managedVm.volumes = [new StorageVolume(id: 902L, name: 'data', maxStorage: 200L * 1024 * 1024 * 1024),
+							 new StorageVolume(id: 901L, name: 'root', maxStorage: 50L * 1024 * 1024 * 1024)]
 		discoveredVm.interfaces = [nic(null)]
 		vmA.interfaces = [nic(netOfB, '10.4.0.7'), nic(sharedNet, '10.5.0.7')]
 		returned[admin] = everything + [nestedVm]
@@ -605,21 +610,39 @@ class HvmInfraSourceSpec extends Specification {
 		networks[1].vms[0].ipAddresses == ['10.4.0.7']
 	}
 
-	def "needs eight queries for the networks of a cluster"() {
+	def "VMs carry the configured cores, memory, total disk size and the disks"() {
+		when:
+		InfraNode vm = source.listAllVms(admin).find { it.id == 30L }
+		InfraNode bare = source.listAllVms(admin).find { it.id == 16L }
+		InfraNode inHost = source.listVms(admin, 13L).find { it.id == 30L }
+
+		then:
+		vm.cores == 4
+		vm.memory == 16L * 1024 * 1024 * 1024
+		vm.storage == 250L * 1024 * 1024 * 1024
+		vm.disks*.name == ['root', 'data']
+		vm.disks*.size == [50L * 1024 * 1024 * 1024, 200L * 1024 * 1024 * 1024]
+		inHost.disks == vm.disks
+		vm.toJson().cores == 4
+		bare.disks == null
+		!bare.toJson().containsKey('disks')
+	}
+
+	def "needs nine queries for the networks of a cluster"() {
 		when:
 		source.listNetworks(admin, 1L)
 
 		then:
-		queries.size() == 8
+		queries.size() == 9
 		queries.every { it.user.is(admin) }
 	}
 
-	def "needs five queries for all VMs"() {
+	def "needs six queries for all VMs"() {
 		when:
 		source.listAllVms(admin)
 
 		then:
-		queries.size() == 5
+		queries.size() == 6
 	}
 
 	def "scopes every query to the requesting user"() {

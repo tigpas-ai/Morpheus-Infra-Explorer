@@ -32,7 +32,10 @@ class HvmInfraSource implements InfraSource {
 	static final List<String> CLUSTER_PROPS = ['id', 'name', 'status', 'type.name', 'owner.id']
 	static final List<String> SERVER_PROPS = ['id', 'name', 'status', 'powerState', 'parentServer.id', 'serverGroup.id',
 											  'account.id', 'account.name', 'computeServerType.code',
-											  'computeServerType.managed', 'createdBy.id', 'maintenanceMode']
+											  'computeServerType.managed', 'createdBy.id', 'maintenanceMode', 'maxCores', 'maxMemory',
+											  'maxStorage']
+	/** One row per disk of a server (left join: a server without disks gives one row with {@code null}) */
+	static final List<String> DISK_PROPS = ['id', 'volumes.id', 'volumes.name', 'volumes.maxStorage']
 	static final List<String> TAG_PROPS = ['id', 'metadata.name', 'metadata.value']
 	static final List<String> WORKLOAD_PROPS = ['id', 'server.id', 'account.id', 'instance.id', 'instance.account.id',
 												'instance.createdBy.id']
@@ -122,7 +125,8 @@ class HvmInfraSource implements InfraSource {
 		List<Map> vms = servers(user, new DataQuery(user).withFilter('parentServer.id', hostId))
 			.findAll { (it['parentServer.id'] as Long) == hostId && accessPolicy.canSeeTenant(user, it['account.id'] as Long) }
 		Map<Long, Map> instances = instancesByServer(user, vms.collect { it.id as Long })
-		return InfraNode.sortByName(vms.collect { toVmNode(it, hostId, instances[it.id as Long]) })
+		Map<Long, List<Map<String, Object>>> disks = disksByServer(user, vms.collect { it.id as Long })
+		return InfraNode.sortByName(vms.collect { toVmNode(it, hostId, instances[it.id as Long], disks[it.id as Long]) })
 	}
 
 	@Override
@@ -272,10 +276,11 @@ class HvmInfraSource implements InfraSource {
 		List<Long> vmIds = vms.collect { it.id as Long }
 		Map<Long, Map<String, String>> tags = tagsByServer(user, vmIds)
 		Map<Long, Map> instances = instancesByServer(user, vmIds)
+		Map<Long, List<Map<String, Object>>> disks = disksByServer(user, vmIds)
 		return InfraNode.sortByName(vms.collect { Map vm ->
 			Long id = vm.id as Long
 			Long hostId = vm['parentServer.id'] as Long
-			InfraNode node = toVmNode(vm, hostId, instances[id])
+			InfraNode node = toVmNode(vm, hostId, instances[id], disks[id])
 			node.hostName = hostsById[hostId].name
 			node.tenantId = vm['account.id'] as Long
 			node.tenant = tenantName(user, node.tenantId, vm['account.name'] as String)
@@ -313,6 +318,26 @@ class HvmInfraSource implements InfraSource {
 			}
 		}
 		return result
+	}
+
+	/** Disks per server as {@code {name, size}} (size in bytes), in the order of their ids; servers without disks are missing */
+	private Map<Long, List<Map<String, Object>>> disksByServer(User user, List<Long> serverIds) {
+		if (!serverIds) {
+			return [:]
+		}
+		DataQuery query = new DataQuery(user).withFilter('id', 'in', serverIds)
+		Set<Long> wanted = serverIds as Set
+		Map<Long, Map<Long, Map<String, Object>>> byServer = [:]
+		rows(morpheus.services.computeServer, query, DISK_PROPS).each { Map row ->
+			Long id = row.id as Long
+			Long diskId = row['volumes.id'] as Long
+			if (!(id in wanted) || diskId == null) {
+				return
+			}
+			byServer.computeIfAbsent(id) { new TreeMap<Long, Map<String, Object>>() }
+				.putIfAbsent(diskId, [name: row['volumes.name'] ?: '', size: (row['volumes.maxStorage'] as Long) ?: 0L])
+		}
+		return byServer.collectEntries { Long id, Map<Long, Map<String, Object>> disks -> [(id): disks.values() as List] }
 	}
 
 	@Override
@@ -358,6 +383,7 @@ class HvmInfraSource implements InfraSource {
 		List<Long> networkIds = networks.keySet().findAll { it in carried || it in used } as List
 		Map<Long, List<Map<String, Object>>> subnets = subnetsByNetwork(user, networkIds)
 		Map<Long, Map> instances = instancesByServer(user, vmIds)
+		Map<Long, List<Map<String, Object>>> disks = disksByServer(user, vmIds)
 
 		Map<Long, List<InfraNode>> vmsByNetwork = [:]
 		List<InfraNode> unattached = []
@@ -368,13 +394,13 @@ class HvmInfraSource implements InfraSource {
 			// Interfaces in networks that are not shown (none, or not visible) put the VM into the extra node once
 			boolean outside = !byNetwork || byNetwork.keySet().any { !(it in networkIds) }
 			byNetwork.findAll { it.key in networkIds }.each { Long networkId, Set<String> addresses ->
-				InfraNode node = toVmNode(vm, hostId, instances[id])
+				InfraNode node = toVmNode(vm, hostId, instances[id], disks[id])
 				node.hostName = hostsById[hostId].name
 				node.ipAddresses = addresses.sort()
 				vmsByNetwork.computeIfAbsent(networkId) { [] } << node
 			}
 			if (outside) {
-				InfraNode node = toVmNode(vm, hostId, instances[id])
+				InfraNode node = toVmNode(vm, hostId, instances[id], disks[id])
 				node.hostName = hostsById[hostId].name
 				node.ipAddresses = (byNetwork.findAll { !(it.key in networkIds) }.values().flatten() as Set<String>).sort()
 				unattached << node
@@ -515,9 +541,13 @@ class HvmInfraSource implements InfraSource {
 			maintenance: host.maintenanceMode as Boolean, url: serverUrl(host))
 	}
 
-	private static InfraNode toVmNode(Map vm, Long hostId, Map workload) {
+	private static InfraNode toVmNode(Map vm, Long hostId, Map workload, List<Map<String, Object>> disks = null) {
 		Long instanceId = workload?.get('instance.id') as Long
-		new InfraNode(id: vm.id as Long, name: vm.name, status: vm.status?.toString(),
+		// Configured sizes (not usage); without disks the total of the server is used. 0 means unknown.
+		Long memory = (vm.maxMemory as Long) ?: null
+		Long storage = disks ? disks.sum { (it.size as Long) ?: 0L } as Long : (vm.maxStorage as Long)
+		new InfraNode(cores: (vm.maxCores as Integer) ?: null, memory: memory, storage: storage ?: null,
+			disks: disks ?: null, id: vm.id as Long, name: vm.name, status: vm.status?.toString(),
 			powerState: vm.powerState?.toString(), type: vm['computeServerType.code'], hostId: hostId,
 			instanceId: instanceId, managed: vm['computeServerType.managed'] as Boolean, url: serverUrl(vm),
 			instanceUrl: instanceId == null ? null : "/provisioning/instances/${instanceId}".toString(),

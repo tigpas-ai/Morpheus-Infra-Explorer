@@ -863,3 +863,39 @@
 .ie-load + .ie-meta {
 	margin-left: 2px;
 }
+
+/* Configured resources of a VM (vCPUs, memory, disks): small symbols with values before the power badge */
+.ie-config {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
+	color: var(--ie-muted);
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.ie-config-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+}
+
+.ie-config-icon {
+	width: 12px;
+	height: 12px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.3;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.ie-host + .ie-config {
+	margin-left: 8px;
+}
+
+.ie-config + .ie-power {
+	margin-left: 6px;
+}

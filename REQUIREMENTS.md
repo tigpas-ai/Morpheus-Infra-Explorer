@@ -69,6 +69,13 @@ kept, and while a VM is dragged the rebuild waits. The panel lies above Morpheus
 dialog of the page (`shown.bs.modal`, only for a really displayed `.modal` – Morpheus components also trigger `show.bs.modal` on elements that never appear, e.g. the date picker on page load) hides it and closing the last dialog (`hidden.bs.modal`) shows it again; this does
 not count as closing it.
 
+Configured resources of a VM (requested 2026-11-12, implemented in 0.23.0): every VM row shows, before the power badge,
+the configured – not the used – vCPUs, memory and total disk size, each as a small symbol with the value: memory as
+rounded GB without unit, disks with unit (GB; from 1 TB with one decimal). Tooltip: vCPUs, memory with up to two
+decimals, total of the disks and one line per disk (name, size). The data comes from the plugin (`cores`, `memory`,
+`storage`, `disks` of the VM node, one extra query for the disks); the total comes from the disks, otherwise from the
+server's `maxStorage`. Values that are 0 or unknown are not shown; without any value the row has no resource part.
+
 Console from the power state (requested 2026-11-11, implemented in 0.22.0): for running VMs with the `console` action the
 green power dot is a link to `/terminal/server/<id>` and opens the console like the menu entry (with a modifier key the
 browser opens the link itself).

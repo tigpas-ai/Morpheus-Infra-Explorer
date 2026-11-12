@@ -3,6 +3,11 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.23.0 – 2026-11-12
+- VM rows show the configured resources (not the usage) in a compact form: vCPUs, memory in rounded GB and the total
+  disk size (GB, from 1 TB with one decimal), each with a small symbol. The tooltip has the details: memory with up to
+  two decimals and one line per disk. Interface 0.17.0: new optional VM fields `cores`, `memory`, `storage`, `disks`.
+
 ## 0.22.0 – 2026-11-11
 - The panel stays open across page changes: if it was open, it opens again right away on the next page (without
   taking the focus). Morpheus dialogs hide it while they are shown, then it opens again.
