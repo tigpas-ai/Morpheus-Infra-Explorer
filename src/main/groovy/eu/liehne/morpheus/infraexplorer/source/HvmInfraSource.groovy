@@ -37,7 +37,9 @@ class HvmInfraSource implements InfraSource {
 	/** One row per disk of a server (left join: a server without disks gives one row with {@code null}) */
 	static final List<String> DISK_PROPS = ['id', 'volumes.id', 'volumes.name', 'volumes.maxStorage', 'volumes.usedStorage', 'volumes.datastore.id',
 										 'volumes.datastore.name']
-	static final List<String> TAG_PROPS = ['id', 'metadata.name', 'metadata.value']
+	/** One row per snapshot of a server (left join) */
+	static final List<String> SNAPSHOT_PROPS = ['id', 'snapshots.id', 'snapshots.name']
+	static final List<String> TAG_PROPS =['id', 'metadata.name', 'metadata.value']
 	static final List<String> WORKLOAD_PROPS = ['id', 'server.id', 'account.id', 'instance.id', 'instance.account.id',
 												'instance.createdBy.id']
 	static final List<String> DATASTORE_PROPS = ['id', 'name', 'status', 'active', 'type', 'datastoreType.name',
@@ -129,7 +131,12 @@ class HvmInfraSource implements InfraSource {
 			.findAll { (it['parentServer.id'] as Long) == hostId && accessPolicy.canSeeTenant(user, it['account.id'] as Long) }
 		Map<Long, Map> instances = instancesByServer(user, vms.collect { it.id as Long })
 		Map<Long, List<Map<String, Object>>> disks = disksByServer(user, vms.collect { it.id as Long })
-		return InfraNode.sortByName(vms.collect { toVmNode(it, hostId, instances[it.id as Long], disks[it.id as Long]) })
+		Map<Long, List<String>> snapshots = snapshotsByServer(user, vms.collect { it.id as Long })
+		return InfraNode.sortByName(vms.collect {
+			InfraNode node = toVmNode(it, hostId, instances[it.id as Long], disks[it.id as Long])
+			node.snapshots = snapshots[it.id as Long]
+			node
+		})
 	}
 
 	@Override
@@ -280,10 +287,12 @@ class HvmInfraSource implements InfraSource {
 		Map<Long, Map<String, String>> tags = tagsByServer(user, vmIds)
 		Map<Long, Map> instances = instancesByServer(user, vmIds)
 		Map<Long, List<Map<String, Object>>> disks = disksByServer(user, vmIds)
+		Map<Long, List<String>> snapshots = snapshotsByServer(user, vmIds)
 		return InfraNode.sortByName(vms.collect { Map vm ->
 			Long id = vm.id as Long
 			Long hostId = vm['parentServer.id'] as Long
 			InfraNode node = toVmNode(vm, hostId, instances[id], disks[id])
+			node.snapshots = snapshots[id]
 			node.hostName = hostsById[hostId].name
 			node.tenantId = vm['account.id'] as Long
 			node.tenant = tenantName(user, node.tenantId, vm['account.name'] as String)
@@ -321,6 +330,24 @@ class HvmInfraSource implements InfraSource {
 			}
 		}
 		return result
+	}
+
+	/** Snapshot names per server (sorted by name, a snapshot without name is an empty string); servers without snapshots are missing */
+	private Map<Long, List<String>> snapshotsByServer(User user, List<Long> serverIds) {
+		if (!serverIds) {
+			return [:]
+		}
+		DataQuery query = new DataQuery(user).withFilter('id', 'in', serverIds)
+		Set<Long> wanted = serverIds as Set
+		Map<Long, Map<Long, String>> byServer = [:]
+		rows(morpheus.services.computeServer, query, SNAPSHOT_PROPS).each { Map row ->
+			Long id = row.id as Long
+			Long snapId = row['snapshots.id'] as Long
+			if ((id in wanted) && snapId != null) {
+				byServer.computeIfAbsent(id) { [:] }.putIfAbsent(snapId, (row['snapshots.name'] ?: '') as String)
+			}
+		}
+		return byServer.collectEntries { Long id, Map<Long, String> names -> [(id): names.values().sort(false) { it.toLowerCase() } as List<String>] }
 	}
 
 	/** Disks per server as {@code {name, size, used, storage, storageId}} (size in bytes), in the order of their ids; servers without disks are missing */
@@ -381,6 +408,7 @@ class HvmInfraSource implements InfraSource {
 		List<Long> vmIds = vms.collect { it.id as Long }
 		Map<Long, Map> instances = instancesByServer(user, vmIds)
 		Map<Long, List<Map<String, Object>>> disks = disksByServer(user, vmIds)
+		Map<Long, List<String>> snapshots = snapshotsByServer(user, vmIds)
 		Map<Long, List<InfraNode>> result = [:]
 		vms.each { Map vm ->
 			Long id = vm.id as Long
@@ -391,6 +419,7 @@ class HvmInfraSource implements InfraSource {
 				node.hostName = hostsById[hostId].name
 				node.cores = null
 				node.memory = null
+				node.snapshots = snapshots[id]
 				node.disks = onStore
 				node.storage = onStore.sum { (it.size as Long) ?: 0L } as Long ?: null
 				result.computeIfAbsent(storeId) { [] } << node

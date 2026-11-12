@@ -1471,7 +1471,9 @@
 		// memory module: bar with chips and contacts
 		ram: 'M1.5 4.5h13v6h-13zM4 10.5v2.5M7 10.5v2.5M10 10.5v2.5M13 10.5v2.5M4 7h2M8 7h2',
 		// disk: cylinder
-		disk: 'M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2zM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2'
+		disk: 'M3 4c0-1.1 2.2-2 5-2s5 .9 5 2-2.2 2-5 2-5-.9-5-2zM3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2',
+		// snapshot: camera
+		snapshot: 'M1.5 5h3l1-1.5h5L11.5 5h3v8h-13zM8 7.2a2.2 2.2 0 1 0 .01 0z'
 	};
 
 	// Sizes in the rows: GB without decimals, from one TB always one decimal. The tooltip (precise) shows from one GB one
@@ -1512,7 +1514,8 @@
 		var hasCores = !onStore && typeof node.cores === 'number' && node.cores > 0;
 		var hasMemory = !onStore && typeof node.memory === 'number' && node.memory > 0;
 		var hasStorage = typeof node.storage === 'number' && node.storage > 0;
-		if (!hasCores && !hasMemory && !hasStorage) {
+		var snapshots = Array.isArray(node.snapshots) ? node.snapshots : [];
+		if (!hasCores && !hasMemory && !hasStorage && !snapshots.length) {
 			return null;
 		}
 		var box = el('span', 'ie-config');
@@ -1541,6 +1544,12 @@
 					: t('config.diskUnnamed', { number: index + 1, size: size });
 				lines.push('  ' + (disk.storage ? '(' + disk.storage + ') ' : '') + diskLine);
 			});
+		}
+		if (snapshots.length) {
+			box.appendChild(configItem('snapshot', formatNumber(snapshots.length)));
+			lines.push(t('config.snapshots', {
+				names: snapshots.map(function (name) { return name || t('config.snapshotUnnamed'); }).join(', ')
+			}));
 		}
 		box.title = lines.join('\n');
 		return box;

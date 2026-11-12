@@ -52,6 +52,8 @@ class InfraNode {
 	Long memory
 	Long storage
 	List<Map<String, Object>> disks
+	/** VMs only: names of the snapshots the VM has, sorted; null without snapshots */
+	List<String> snapshots
 
 	/** Datastores only: capacity and free space in bytes, availability */
 	Long storageSize
@@ -76,7 +78,7 @@ class InfraNode {
 		 online: online, hostName: hostName, tenantId: tenantId, tenant: tenant, folders: folders, instanceUrl: instanceUrl,
 		 maintenance: maintenance, actions: actions, vlanId: vlanId, cidr: cidr, cidrIPv6: cidrIPv6, subnets: subnets,
 		 vmCount: vmCount, vms: vms?.collect { it.toJson() }, ipAddresses: ipAddresses, cores: cores, memory: memory,
-		 storage: storage, disks: disks, interfaces: interfaces].findAll { it.value != null }
+		 storage: storage, disks: disks, snapshots: snapshots, interfaces: interfaces].findAll { it.value != null }
 	}
 
 	/** Sorts in place by name, case-insensitive; nodes without name first. */
