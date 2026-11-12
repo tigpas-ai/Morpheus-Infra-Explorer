@@ -3,6 +3,11 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.23.0 – 2026-11-12
+- VMs with snapshots show a camera symbol with the number of snapshots; the tooltip lists their names (the
+  really used size of the disks is unchanged and does not include the snapshot chain). Interface 0.18.0: new optional
+  field `snapshots` of VM nodes.
+
 ## 0.22.0 – 2026-11-12
 - The panel stays open across page changes: if it was open, it opens again right away on the next page (without
   taking the focus). Morpheus dialogs hide it while they are shown, then it opens again.

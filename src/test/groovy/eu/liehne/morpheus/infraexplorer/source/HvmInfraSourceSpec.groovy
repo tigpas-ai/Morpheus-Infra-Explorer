@@ -29,6 +29,7 @@ import com.morpheusdata.model.NetworkType
 import com.morpheusdata.model.StorageVolume
 import com.morpheusdata.model.User
 import com.morpheusdata.model.Workload
+import com.morpheusdata.model.projection.SnapshotIdentityProjection
 import com.morpheusdata.model.projection.ComputeServerIdentityProjection
 import com.morpheusdata.model.projection.DatastoreIdentity
 import spock.lang.Specification
@@ -120,6 +121,7 @@ class HvmInfraSourceSpec extends Specification {
 		managedVm.volumes = [new StorageVolume(id: 902L, name: 'data', maxStorage: 200L * 1024 * 1024 * 1024),
 							 new StorageVolume(id: 901L, name: 'root', maxStorage: 50L * 1024 * 1024 * 1024, usedStorage: 3L * 1024 * 1024 * 1024,
 									  datastore: new DatastoreIdentity(id: 14L, name: 'cluster-store'))]
+		managedVm.snapshots = [new SnapshotIdentityProjection(id: 5L, name: 's2'), new SnapshotIdentityProjection(id: 4L, name: 'S1')]
 		discoveredVm.interfaces = [nic(null)]
 		vmA.interfaces = [nic(netOfB, '10.4.0.7'), nic(sharedNet, '10.5.0.7')]
 		returned[admin] = everything + [nestedVm]
@@ -629,6 +631,10 @@ class HvmInfraSourceSpec extends Specification {
 		vm.disks*.storage == ['cluster-store', null]
 		vm.disks*.size == [50L * 1024 * 1024 * 1024, 200L * 1024 * 1024 * 1024]
 		inHost.disks == vm.disks
+		vm.snapshots == ['S1', 's2']
+		inHost.snapshots == vm.snapshots
+		bare.snapshots == null
+		!bare.toJson().containsKey('snapshots')
 		vm.toJson().cores == 4
 		bare.disks == null
 		!bare.toJson().containsKey('disks')
@@ -674,12 +680,12 @@ class HvmInfraSourceSpec extends Specification {
 		queries.every { it.user.is(admin) }
 	}
 
-	def "needs six queries for all VMs"() {
+	def "needs seven queries for all VMs"() {
 		when:
 		source.listAllVms(admin)
 
 		then:
-		queries.size() == 6
+		queries.size() == 7
 	}
 
 	def "scopes every query to the requesting user"() {

@@ -77,6 +77,8 @@ window.InfraExplorerMessages = {
 		'config.storage': 'Disks: {size}',
 		'config.disk': '{name}: {size}',
 		'config.diskUnnamed': 'Disk {number}: {size}',
+		'config.snapshots': 'Snapshots: {names}',
+		'config.snapshotUnnamed': '(unnamed)',
 
 		'network.without': 'Without network',
 		'network.vlan': 'VLAN {id}',
@@ -275,6 +277,8 @@ window.InfraExplorerMessages = {
 		'config.storage': 'Festplatten: {size}',
 		'config.disk': '{name}: {size}',
 		'config.diskUnnamed': 'Festplatte {number}: {size}',
+		'config.snapshots': 'Snapshots: {names}',
+		'config.snapshotUnnamed': '(ohne Namen)',
 
 		'network.without': 'Ohne Netzwerk',
 		'network.vlan': 'VLAN {id}',
