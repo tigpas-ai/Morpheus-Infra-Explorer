@@ -6,8 +6,8 @@ All notable changes to this plugin. The interface (endpoints, options, data form
 ## 0.27.0 – 2026-11-12
 - Networks tab: addresses and interface labels are anchored on the right as well; the host name sits right next to the
   power dot.
-- VM rows: right-aligned in a fixed order, from the right power dot, host, resources; host and resource values have
-  fixed column widths, so the rows line up.
+- VM rows: right-aligned in a fixed order, from the right power dot, host, resources; the resource values have
+  fixed column widths, the host only the width of its name.
 - Storage tab: expandable datastores keep the caret in the leaf column and the VM count in a fixed column, so names and
   usage bars line up again.
 - Storage tab: the VM rows show no vCPUs and memory, only the disks on that datastore as `really used / configured`

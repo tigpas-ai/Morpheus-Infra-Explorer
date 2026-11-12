@@ -929,12 +929,7 @@
 	margin-left: 10px;
 }
 
-/* Fixed widths, so host and resources of all rows stand in columns */
-.ie-host {
-	width: 7em;
-	text-align: right;
-}
-
+/* Fixed widths of the resource values, so they stand in columns; the host takes only the space of its name */
 .ie-config-cpu {
 	min-width: 34px;
 }
