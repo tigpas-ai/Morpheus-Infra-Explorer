@@ -66,7 +66,7 @@ again while the view fills in (up to 5 s, until the user scrolls or acts in the 
 remembered, a newer answer that differs from the shown one rebuilds its list and the nodes expand again (before 0.22.0
 it was skipped while a node was expanded, which kept added objects hidden); scroll position and keyboard focus are
 kept, and while a VM is dragged the rebuild waits. The panel lies above Morpheus dialogs (`z-index`), so any Bootstrap
-dialog of the page (`show.bs.modal`) hides it and closing the last dialog (`hidden.bs.modal`) shows it again; this does
+dialog of the page (`shown.bs.modal`, only for a really displayed `.modal` – Morpheus components also trigger `show.bs.modal` on elements that never appear, e.g. the date picker on page load) hides it and closing the last dialog (`hidden.bs.modal`) shows it again; this does
 not count as closing it.
 
 Console from the power state (requested 2026-11-11, implemented in 0.22.0): for running VMs with the `console` action the

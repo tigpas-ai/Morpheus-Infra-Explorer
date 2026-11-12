@@ -12,6 +12,8 @@ All notable changes to this plugin. The interface (endpoints, options, data form
 - Dragging a VM near the top or bottom edge of the list scrolls it, faster closer to the edge.
 - Three seconds after the pointer has left the overlay, the panel fades gradually (over 3 s) to half transparent; it
   is opaque again as soon as the pointer is back. A panel that opens again on a new page starts half transparent.
+- Fixed: the reopened panel was hidden again right after loading a page, because a Morpheus component triggers a
+  dialog event on an element that never appears; only dialogs that are really displayed hide the panel now.
 
 ## 0.21.0 – 2026-11-08
 - Storage view: the host tooltip of the path state names the reason when a host is down despite active paths

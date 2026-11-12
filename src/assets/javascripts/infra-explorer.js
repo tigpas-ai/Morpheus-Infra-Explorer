@@ -1392,8 +1392,14 @@
 	// The panel lies above Morpheus dialogs (z-index); it hides while one of them is shown (opened from the menu or on
 	// the page itself) and opens again when the last dialog is closed. Uses the Bootstrap events of Morpheus (jQuery),
 	// so the panel only hides when a dialog really opens.
-	function closePanelForDialog() {
+	function closePanelForDialog(event) {
 		if (panel.hidden) {
+			return;
+		}
+		// Morpheus components also trigger the event on elements that never become a visible dialog (e.g. the date
+		// picker while the page loads): only a dialog that is really displayed counts, hence "shown", not "show"
+		var target = event && event.target;
+		if (!target || !target.classList || !target.classList.contains('modal') || !target.getClientRects().length) {
 			return;
 		}
 		setOpen(false, { keep: true });
@@ -1413,7 +1419,7 @@
 
 	function watchDialogs() {
 		if (window.jQuery) {
-			window.jQuery(document).on('show.bs.modal', closePanelForDialog);
+			window.jQuery(document).on('shown.bs.modal', closePanelForDialog);
 			return true;
 		}
 		return false;
