@@ -35,7 +35,7 @@ class HvmInfraSource implements InfraSource {
 											  'computeServerType.managed', 'createdBy.id', 'maintenanceMode', 'maxCores', 'maxMemory',
 											  'maxStorage']
 	/** One row per disk of a server (left join: a server without disks gives one row with {@code null}) */
-	static final List<String> DISK_PROPS = ['id', 'volumes.id', 'volumes.name', 'volumes.maxStorage']
+	static final List<String> DISK_PROPS = ['id', 'volumes.id', 'volumes.name', 'volumes.maxStorage', 'volumes.datastore.name']
 	static final List<String> TAG_PROPS = ['id', 'metadata.name', 'metadata.value']
 	static final List<String> WORKLOAD_PROPS = ['id', 'server.id', 'account.id', 'instance.id', 'instance.account.id',
 												'instance.createdBy.id']
@@ -322,7 +322,7 @@ class HvmInfraSource implements InfraSource {
 		return result
 	}
 
-	/** Disks per server as {@code {name, size}} (size in bytes), in the order of their ids; servers without disks are missing */
+	/** Disks per server as {@code {name, size, storage}} (size in bytes), in the order of their ids; servers without disks are missing */
 	private Map<Long, List<Map<String, Object>>> disksByServer(User user, List<Long> serverIds) {
 		if (!serverIds) {
 			return [:]
@@ -337,7 +337,8 @@ class HvmInfraSource implements InfraSource {
 				return
 			}
 			byServer.computeIfAbsent(id) { new TreeMap<Long, Map<String, Object>>() }
-				.putIfAbsent(diskId, [name: row['volumes.name'] ?: '', size: (row['volumes.maxStorage'] as Long) ?: 0L])
+				.putIfAbsent(diskId, [name: row['volumes.name'] ?: '', size: (row['volumes.maxStorage'] as Long) ?: 0L,
+										  storage: row['volumes.datastore.name'] ?: null].findAll { it.value != null })
 		}
 		return byServer.collectEntries { Long id, Map<Long, Map<String, Object>> disks -> [(id): disks.values() as List] }
 	}

@@ -1518,8 +1518,9 @@
 			lines.push(t('config.storage', { size: formatDiskSize(node.storage, true) }));
 			(node.disks || []).forEach(function (disk, index) {
 				var size = formatDiskSize(disk.size || 0, true);
-				lines.push('  ' + (disk.name ? t('config.disk', { name: disk.name, size: size })
-					: t('config.diskUnnamed', { number: index + 1, size: size })));
+				var diskLine = disk.name ? t('config.disk', { name: disk.name, size: size })
+					: t('config.diskUnnamed', { number: index + 1, size: size });
+				lines.push('  ' + (disk.storage ? '(' + disk.storage + ') ' : '') + diskLine);
 			});
 		}
 		box.title = lines.join('\n');

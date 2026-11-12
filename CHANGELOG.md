@@ -3,6 +3,10 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
+## 0.25.0 – 2026-11-12
+- The tooltip of the resources shows the storage of each disk: `(Storage) Name: Size`. Interface 0.19.0: new optional
+  `storage` in the `disks` entries.
+
 ## 0.24.0 – 2026-11-12
 - The resources (vCPUs, memory, disks) are shown only in the Clusters and Instances tabs. In the Networks tab the VM
   rows show the labels of the VM's interfaces in that network instead; the tooltip has the details per interface

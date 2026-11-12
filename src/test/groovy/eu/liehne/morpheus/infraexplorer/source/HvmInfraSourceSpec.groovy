@@ -30,6 +30,7 @@ import com.morpheusdata.model.StorageVolume
 import com.morpheusdata.model.User
 import com.morpheusdata.model.Workload
 import com.morpheusdata.model.projection.ComputeServerIdentityProjection
+import com.morpheusdata.model.projection.DatastoreIdentity
 import spock.lang.Specification
 
 /**
@@ -117,7 +118,8 @@ class HvmInfraSourceSpec extends Specification {
 		managedVm.maxCores = 4L
 		managedVm.maxMemory = 16L * 1024 * 1024 * 1024
 		managedVm.volumes = [new StorageVolume(id: 902L, name: 'data', maxStorage: 200L * 1024 * 1024 * 1024),
-							 new StorageVolume(id: 901L, name: 'root', maxStorage: 50L * 1024 * 1024 * 1024)]
+							 new StorageVolume(id: 901L, name: 'root', maxStorage: 50L * 1024 * 1024 * 1024,
+									  datastore: new DatastoreIdentity(name: 'cluster-store'))]
 		discoveredVm.interfaces = [nic(null)]
 		vmA.interfaces = [nic(netOfB, '10.4.0.7'), nic(sharedNet, '10.5.0.7')]
 		returned[admin] = everything + [nestedVm]
@@ -624,6 +626,7 @@ class HvmInfraSourceSpec extends Specification {
 		vm.memory == 16L * 1024 * 1024 * 1024
 		vm.storage == 250L * 1024 * 1024 * 1024
 		vm.disks*.name == ['root', 'data']
+		vm.disks*.storage == ['cluster-store', null]
 		vm.disks*.size == [50L * 1024 * 1024 * 1024, 200L * 1024 * 1024 * 1024]
 		inHost.disks == vm.disks
 		vm.toJson().cores == 4
