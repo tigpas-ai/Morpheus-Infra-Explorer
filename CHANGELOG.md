@@ -3,49 +3,31 @@
 All notable changes to this plugin. The interface (endpoints, options, data formats) is versioned separately in
 [`CONTRACT.md`](CONTRACT.md).
 
-## 0.27.0 – 2026-11-12
-- Sizes: in the rows GB without decimals and from 1 TB always one decimal; in the tooltip from 1 GB one decimal (omitted
-  when zero), from 1 TB always one decimal. Really used space below 1 GB in KB/MB.
-- Networks tab: addresses and interface labels are anchored on the right as well; the host name sits right next to the
-  power dot.
-- VM rows: right-aligned in a fixed order, from the right power dot, host, resources; the resource values have
-  fixed column widths, the host only the width of its name.
-- Storage tab: expandable datastores keep the caret in the leaf column and the VM count in a fixed column, so names and
-  usage bars line up again.
-- Storage tab: the VM rows show no vCPUs and memory, only the disks on that datastore as `really used / configured`
-  (thin provisioning), also per disk in the tooltip. Interface 0.21.0: new optional `used` in the `disks` entries.
-
-## 0.26.0 – 2026-11-12
-- Storage tab: datastores expand and show the VMs that have a disk on them (for users who may see servers); the resources
-  of such a VM row and its tooltip cover only its disks on that datastore. Interface 0.20.0: `vms` and `vmCount` per
-  datastore, `storageId` in the `disks` entries.
-
-## 0.25.0 – 2026-11-12
-- Networks tab: each interface label has its own tooltip with the details of that interface.
-- The tooltip of the resources shows the storage of each disk: `(Storage) Name: Size`. Interface 0.19.0: new optional
-  `storage` in the `disks` entries.
-
-## 0.24.0 – 2026-11-12
-- The resources (vCPUs, memory, disks) are shown only in the Clusters and Instances tabs. In the Networks tab the VM
-  rows show the labels of the VM's interfaces in that network instead; the tooltip has the details per interface
-  (type, MAC address, addresses, DHCP, primary). Interface 0.18.0: new optional `interfaces` on VMs of networks.
-
-## 0.23.0 – 2026-11-12
-- VM rows show the configured resources (not the usage) in a compact form: vCPUs, memory in rounded GB and the total
-  disk size (GB, from 1 TB with one decimal), each with a small symbol. The tooltip has the details: memory with up to
-  two decimals and one line per disk. Interface 0.17.0: new optional VM fields `cores`, `memory`, `storage`, `disks`.
-
-## 0.22.0 – 2026-11-11
+## 0.22.0 – 2026-11-12
 - The panel stays open across page changes: if it was open, it opens again right away on the next page (without
   taking the focus). Morpheus dialogs hide it while they are shown, then it opens again.
 - The panel keeps its state in the browser tab (sessionStorage, per user): the shown view, the expanded nodes of every
   view and the scroll position per view, also after closing and opening it.
 - The green power dot of a running VM opens its console (with the Remote Console permission).
 - Dragging a VM near the top or bottom edge of the list scrolls it, faster closer to the edge.
-- Two seconds after the pointer has left the overlay, the panel fades (over 0.3 s, also with "reduce motion") to half transparent; it
-  is opaque again as soon as the pointer is back. A panel that opens again on a new page starts half transparent.
+- Two seconds after the pointer has left the overlay, the panel fades (over 0.3 s, also with "reduce motion") to half
+  transparent; it is opaque again as soon as the pointer is back. A panel that opens again on a new page starts half
+  transparent.
+- Clusters and Instances tabs: VM rows show the configured resources (not the usage): vCPUs, memory and the total disk
+  size, each with a small symbol. The tooltip has the details: memory, the total and one line per disk with its
+  datastore (`(Datastore) Name: Size`).
+- Networks tab: VM rows show the labels of the VM's interfaces in that network; the tooltip of each label has the
+  details of that interface (type, MAC address, addresses, DHCP, primary).
+- Storage tab: datastores expand and show the VMs that have a disk on them (for users who may see servers), with only
+  the disks on that datastore as `really used / configured` (thin provisioning).
+- Sizes: in the rows GB without decimals, from 1 TB always one decimal; in the tooltip from 1 GB one decimal (omitted
+  when zero), from 1 TB always one decimal. Really used space below 1 GB in KB/MB.
+- VM rows are anchored on the right in a fixed order: power dot, host, resources (in the Networks tab: interface labels
+  and addresses before the host).
 - Fixed: the reopened panel was hidden again right after loading a page, because a Morpheus component triggers a
   dialog event on an element that never appears; only dialogs that are really displayed hide the panel now.
+- Interface 0.17.0: new optional fields `cores`, `memory`, `storage`, `disks` (`name`, `size`, `used`, `storage`,
+  `storageId`) on VMs, `interfaces` on VMs of networks, `vms` and `vmCount` on datastores.
 
 ## 0.21.0 – 2026-11-08
 - Storage view: the host tooltip of the path state names the reason when a host is down despite active paths

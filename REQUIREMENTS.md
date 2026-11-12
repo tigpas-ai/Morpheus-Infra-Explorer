@@ -69,18 +69,26 @@ kept, and while a VM is dragged the rebuild waits. The panel lies above Morpheus
 dialog of the page (`shown.bs.modal`, only for a really displayed `.modal` – Morpheus components also trigger `show.bs.modal` on elements that never appear, e.g. the date picker on page load) hides it and closing the last dialog (`hidden.bs.modal`) shows it again; this does
 not count as closing it.
 
-Configured resources of a VM (requested 2026-11-12, implemented in 0.23.0, limited to the Clusters and Instances tabs in 0.24.0): every VM row there shows, before the power badge,
-the configured – not the used – vCPUs, memory and total disk size, each as a small symbol with the value: memory as
-rounded GB without unit, disks with unit (GB; from 1 TB with one decimal). Tooltip: vCPUs, memory with up to two
-decimals, total of the disks and one line per disk (name, size). The data comes from the plugin (`cores`, `memory`,
-`storage`, `disks` of the VM node, one extra query for the disks); the total comes from the disks, otherwise from the
-server's `maxStorage`. Values that are 0 or unknown are not shown; without any value the row has no resource part.
-Storage tab (requested 2026-11-12, 0.26.0): a datastore expands and lists the VMs with a disk on it (resources and
-tooltip limited to the disks there); shown only with server permission, otherwise the datastore stays a leaf.
-In the Networks tab the VM rows instead show the labels (`name`) of the VM's interfaces in that network; the tooltip lists
-per interface type, MAC address, addresses, DHCP and primary flag (requested 2026-11-12, 0.24.0; `interfaces` of the VM
-node, read with the interface query, columns `interfaces.name/macAddress/type.name/primaryInterface/dhcp` – verified on the
-appliance, 2026-11-12).
+Configured resources of a VM (requested 2026-11-12, implemented in 0.22.0, only in the Clusters and Instances tabs): every
+VM row there shows, before the host and the power badge, the configured – not the used – vCPUs, memory and total disk
+size, each as a small symbol with the value: memory as rounded GB without unit, disks in GB (no decimals; from 1 TB always
+one decimal). Tooltip: vCPUs, memory (from 1 GB one decimal, omitted when zero; from 1 TB always one decimal; below 1 GB up
+to two), the total of the disks and one line per disk: `(Datastore) Name: Size`. The data comes from the plugin (`cores`,
+`memory`, `storage`, `disks` of the VM node, one extra query for the disks); the total comes from the disks, otherwise
+from the server's `maxStorage`. Values that are 0 or unknown are not shown; without any value the row has no resource part.
+Row layout: details are anchored on the right in a fixed order, from the right power dot, host, resources; the values of
+the resources have fixed minimum widths so the rows line up.
+
+Storage tab (requested 2026-11-12, implemented in 0.22.0): a datastore expands and lists the VMs with a disk on it (shown
+only with server permission, otherwise the datastore stays a leaf). The VM rows show no vCPUs and memory, only their disks on
+that datastore as `really used / configured` (`used` of the disk = `usedStorage` of the Morpheus volume, the space the thin
+disk really occupies as last synchronised by Morpheus; shown in KB/MB below 1 GB), also per disk in the tooltip.
+
+Networks tab (requested 2026-11-12, implemented in 0.22.0): the VM rows show the labels (`name`) of the VM's interfaces in
+that network instead of the resources, each label with its own tooltip: type, MAC address, addresses, DHCP, primary flag
+(`interfaces` of the VM node, read with the interface query, columns
+`interfaces.name/macAddress/type.name/primaryInterface/dhcp` – verified on the appliance, 2026-11-12). From the right: power
+dot, host, interface labels, addresses.
 
 Console from the power state (requested 2026-11-11, implemented in 0.22.0): for running VMs with the `console` action the
 green power dot is a link to `/terminal/server/<id>` and opens the console like the menu entry (with a modifier key the

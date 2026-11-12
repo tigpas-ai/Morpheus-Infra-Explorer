@@ -3,8 +3,8 @@
 Describes everything the plugin exposes, so that API clients and scripts can rely on it **without** reading the
 plugin code. On every change: increase the version and record the change in the log below.
 
-- Contract version: 0.21.0
-- Plugin version: 0.27.0 (plugin API 1.4.1)
+- Contract version: 0.17.0
+- Plugin version: 0.22.0 (plugin API 1.4.1)
 - Minimum Morpheus version: 9.1.0
 
 ## Endpoints / providers
@@ -87,8 +87,4 @@ English and meant for display, not for parsing.
 | 0.14.0 | 2026-10-25 | endpoint `POST level-rename`, `vm-folders`: `levelsEditable`; setting `folderTags` can be changed from the overlay | no |
 | 0.15.0 | 2026-10-31 | English texts: fallback tenant name `Tenant <id>` (was German), error texts and setting label in English | no (only display texts) |
 | 0.16.0 | 2026-10-31 | endpoint `networks` (networks of a cluster with their VMs), network node fields, permission `infrastructure-networks`; asset `infra-explorer-messages.js` (overlay texts per language) | no |
-| 0.17.0 | 2026-11-12 | VM node (`vms`, `vm-folders`, VMs of `networks`): configured resources `cores`, `memory`, `storage`, `disks` | no (new optional fields) |
-| 0.18.0 | 2026-11-12 | VMs of `networks` no longer carry `cores`, `memory`, `storage`, `disks`; new optional `interfaces` | no for new field; the resources of network VMs are removed again (never released) |
-| 0.19.0 | 2026-11-12 | `disks` entries of VMs: new optional `storage` (name of the datastore) | no (new optional field) |
-| 0.20.0 | 2026-11-12 | `datastores`: `vms` and `vmCount` per datastore (only with server permission); `disks` entries: new optional `storageId` | no (new optional fields) |
-| 0.21.0 | 2026-11-12 | `disks` entries: new optional `used` (really occupied bytes); VMs of `datastores` without `cores`, `memory` | no (new optional field) |
+| 0.17.0 | 2026-11-12 | VM node (`vms`, `vm-folders`): configured resources `cores`, `memory`, `storage`, `disks` (`name`, `size`, `used`, `storage`, `storageId`); VMs of `networks`: `interfaces`; `datastores`: `vms` and `vmCount` per datastore (only with server permission, each VM with only its disks there) | no (new optional fields) |
