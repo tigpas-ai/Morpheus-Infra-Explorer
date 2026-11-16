@@ -9,6 +9,13 @@ reconfigure. The first version supports HVM clusters. Details and open points: [
 >
 > Source: <https://github.com/tigpas-ai/Morpheus-Infra-Explorer>
 
+## Screenshots
+Names and addresses are replaced by placeholders.
+
+| Clusters | Instances | Networks | Storage |
+|---|---|---|---|
+| ![Cluster tree](docs/images/clusters.png) | ![VM folders](docs/images/instances.png) | ![Networks](docs/images/networks.png) | ![Storage](docs/images/storage.png) |
+
 ## Contents
 | Path | Content |
 |---|---|
