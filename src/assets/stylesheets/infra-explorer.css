@@ -906,6 +906,7 @@
 	margin-left: auto;
 	color: var(--ie-muted);
 	font-size: 12px;
+	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
 }
 
@@ -944,4 +945,10 @@
 
 .ie-config + .ie-power {
 	margin-left: 6px;
+}
+
+/* Console link: its 4 px transparent border would push the resource columns to the left – keep the same distance
+   between the columns and the dot as for a plain dot, so the columns stay aligned across all rows */
+#ie-root .ie-config + a.ie-power {
+	margin-left: 2px;
 }
