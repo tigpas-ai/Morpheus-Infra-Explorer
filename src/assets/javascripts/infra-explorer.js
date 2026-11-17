@@ -971,10 +971,18 @@
 				return input;
 			},
 			// Read-only line: label above, value below
-			addInfo: function (labelText, value) {
+			addInfo: function (labelText, value, href) {
 				var row = el('div', 'ie-field ie-info');
 				row.appendChild(el('span', 'ie-info-label', labelText));
-				row.appendChild(el('span', 'ie-info-value', value));
+				if (href) {
+					var link = el('a', 'ie-info-value', value);
+					link.href = href;
+					link.target = '_blank';
+					link.rel = 'noopener noreferrer';
+					row.appendChild(link);
+				} else {
+					row.appendChild(el('span', 'ie-info-value', value));
+				}
 				fields.appendChild(row);
 			},
 			addButton: function (labelText, primary) {
@@ -1127,6 +1135,10 @@
 		dialog.addInfo(t('about.version'), root.dataset.ieVersion || '–');
 		dialog.addInfo(t('about.author'), root.dataset.ieAuthor || '–');
 		dialog.addInfo(t('about.license'), root.dataset.ieLicense || '–');
+		var source = root.dataset.ieSource || '';
+		if (/^https:\/\//.test(source)) {
+			dialog.addInfo(t('about.source'), source, source);
+		}
 		var close = dialog.addButton(t('button.close'), true);
 		dialog.form.addEventListener('submit', function (event) {
 			event.preventDefault();
