@@ -202,6 +202,7 @@ window.InfraExplorerMessages = {
 		'about.version': 'Version',
 		'about.author': 'Author',
 		'about.license': 'License',
+		'about.source': 'Source code',
 		'about.hint': 'Open source software under the {license} license.'
 	},
 
@@ -402,6 +403,7 @@ window.InfraExplorerMessages = {
 		'about.version': 'Version',
 		'about.author': 'Autor',
 		'about.license': 'Lizenz',
+		'about.source': 'Quellcode',
 		'about.hint': 'Open-Source-Software unter der {license}-Lizenz.'
 	}
 };

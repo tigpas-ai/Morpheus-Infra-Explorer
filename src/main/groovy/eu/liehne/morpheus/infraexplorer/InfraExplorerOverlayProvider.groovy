@@ -46,7 +46,8 @@ class InfraExplorerOverlayProvider extends AbstractGlobalUIComponentProvider {
 		// No user data goes into the page, only a key that keeps the browser cache of one user apart from the next.
 		ViewModel<Object> model = new ViewModel<>()
 		model.object = [cacheKey: cacheKey(user, account), layoutKey: layoutKey(user), assetVersion: assetVersion(),
-						version: plugin?.version ?: '', author: InfraExplorerPlugin.AUTHOR, license: InfraExplorerPlugin.LICENSE]
+						version: plugin?.version ?: '', author: InfraExplorerPlugin.AUTHOR, license: InfraExplorerPlugin.LICENSE,
+						source: InfraExplorerPlugin.REPOSITORY_URL]
 		getRenderer().renderTemplate('hbs/infraExplorerOverlay', model)
 	}
 

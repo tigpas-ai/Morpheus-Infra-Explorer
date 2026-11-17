@@ -621,6 +621,13 @@
 	overflow-wrap: anywhere;
 }
 
+/* Link in a read-only line: the host page colours links dark, so the colour is set for every state */
+#ie-root a.ie-info-value,
+#ie-root a.ie-info-value:is(:link, :visited, :hover, :focus, :active) {
+	color: var(--ie-accent);
+	text-decoration: underline;
+}
+
 .ie-info-label {
 	color: var(--ie-muted);
 	font-size: 12px;
@@ -906,6 +913,7 @@
 	margin-left: auto;
 	color: var(--ie-muted);
 	font-size: 12px;
+	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
 }
 
@@ -944,4 +952,10 @@
 
 .ie-config + .ie-power {
 	margin-left: 6px;
+}
+
+/* Console link: its 4 px transparent border would push the resource columns to the left – keep the same distance
+   between the columns and the dot as for a plain dot, so the columns stay aligned across all rows */
+#ie-root .ie-config + a.ie-power {
+	margin-left: 2px;
 }
